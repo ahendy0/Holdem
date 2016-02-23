@@ -53,19 +53,18 @@ class Game(object):
                 self.game_info['cards'][round_no] = self.diler.give_three_cards()
             elif round_no == 2 or round_no == 3:
                 self.game_info['cards'][round_no] = [self.diler.give_card()]
-    
             # Show cards handed out by diler
             self.table.display_cards(self.game_info)
 
             while len(will_move) != 0:
-                player = will_move.pop(0) 
+                player = will_move.pop(0)
 
                 if player not in allins:
                     self.table.display_move_start()
                     # Show player's move
                     move = player.make_move(self.game_info)
                     self.table.display_move(move)
-                else: 
+                else:
                     continue
 
                 self.game_info['moves'][round_no].append(move)
@@ -100,11 +99,12 @@ class Game(object):
                     will_move.extend(made_move)
                     made_move = []
 
-                                
+
+            # TODO: if everyone folds in a round. not sure what code does. it should just give the pot to the last person to fold
             # Checking end of game condition: if only one player in next round
             if len(made_move) == 1 and len(allins) == 0:
                 break
-            
+
             # Checking if there are allin players
             if len(made_move) < 2 and len(allins) > 0:
                 continue
@@ -113,7 +113,7 @@ class Game(object):
             if round_no != 3:
                 will_move = made_move[:]
                 made_move = []
-        
+
         finalists = made_move[:] + allins
         # Determine winners
         fin_ids = [fn.plid for fn in finalists]
@@ -122,21 +122,35 @@ class Game(object):
         # Share pots among winners
         for pot in pots:
             cand_ids = list(set(pot['plids']) & set(fin_ids))
-            candidates = [self.__player_by_id__(pid) for pid in cand_ids] 
+            candidates = [self.__player_by_id__(pid) for pid in cand_ids]
             winner_combs = self.__determine_winners__(self.game_info, candidates)
             winner_ids = [wc[0] for wc in winner_combs]
             for plid in winner_ids:
                 amount = round(pot['value']/len(winner_ids))
                 comb = dict(winner_combs)[plid]
-                self.__player_by_id__(plid).bankroll += amount 
+                self.__player_by_id__(plid).bankroll += amount
                 self.table.announce_win(plid, comb, amount)
+        # want to return the bank rolls for each player
+        bankrolls = []
+        for player in self.players:
+            x = {'plid': player.plid, 'bankroll': player.bankroll}
+            bankrolls.append(x)
+        return bankrolls
 
     def __player_by_id__(self, plid):
         """
         Returns a player instance given it's id.
         """
         return filter(lambda pl: True if pl.plid == plid \
-                                        else False, self.players)[0] 
+                                        else False, self.players)[0]
+        # for player in self.players:
+        #     if player.plid == plid:
+        #         return player
+        #
+        # this part was a guess
+        # for player in self.players:
+        #     if player.player.plid == plid:
+        #         return player.player
 
     def __determine_winners__(self, game_info, candidates):
         """

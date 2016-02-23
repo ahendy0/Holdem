@@ -1,5 +1,6 @@
 from holdem.diler import Diler
 from holdem.player import CLIPlayer
+from holdem.player import PlayerAtTable
 from holdem.different import Deck
 
 class Table(object):
@@ -7,6 +8,10 @@ class Table(object):
     Implementation of table abstraction.
     """
     def __init__(self, name, sbl, bbl, sits_count, min_buyin):
+        # sbl = small blind
+        # bb; = big blind
+        # sit_count = max number of seats
+        # min_buyin is smallest amount person can come in with
         self.deck = Deck()
         self.diler = Diler(self.deck)
         self.sbl = sbl
@@ -18,9 +23,18 @@ class Table(object):
         self.players = []
         self.msg_separator = '--------------'
 
-    def add_player(self, player):
+    def add_player(self, player, bot):
         """Registers player for current table"""
-        tplayer = CLIPlayer(player)
+        # if player doesnt have enough money, dont add them
+        if player.cash_amount < self.min_buyin:
+            print "player %d is out of chips" % player.plid
+            return
+
+        if bot:
+            tplayer = PlayerAtTable(player)
+        else:
+            tplayer = CLIPlayer(player)
+
         tplayer.take_sit(self.__available_sits__())
         tplayer.make_buyin(self.min_buyin)
         self.players.append(tplayer)
@@ -41,12 +55,12 @@ class Table(object):
 
 
     def display_cards(self, game_info):
-        print self.msg_separator 
+        print self.msg_separator
         print "Diler hands out next card(s): %s" % game_info['cards'][-1]
 
     def display_move(self, move):
-        print self.msg_separator 
-        print 'Player with id %r decided to %r with %r' \
+        # print self.msg_separator
+        print '\tPlayer with id %r decided to %r with %r' \
                 % (move['plid'], 
                    move['decision'].dec_type,
                    move['decision'].value)
