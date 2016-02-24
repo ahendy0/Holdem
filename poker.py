@@ -4,13 +4,14 @@ from holdem.game import *
 
 import matplotlib.pyplot as plt
 
+#params
 bankrolls = []
 numplayers = 10
 bankroll = 400
 seatscount = 10
 sb = 2
 bb = 4
-minbuy = 100
+minbuy = 1
 
 bankhistory = [[] for i in xrange(numplayers)]
 numbhands = 100000
@@ -31,9 +32,7 @@ for handid in xrange(numbhands):
         )
         #add to bankhistory
         bankhistory[player['plid']].append(player['bankroll'])
-        
-        
-        
+ 
     
     if len(table.players) == 1:
         print "WINNER IS: player %s" % table.players[0].plid
