@@ -27,7 +27,7 @@ class Game(object):
                                for player in self.players])
             }
    
-    def play_game(self):
+    def play_hand(self):
         """Implementation of game flow"""
         self.table.on_game_started()
         # Sort players accroding to button position
