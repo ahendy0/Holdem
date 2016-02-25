@@ -245,12 +245,13 @@ class Diler(object):
         or None otherwise
         """
         scards = self.__same_rank__(cards)
-        if len(scards[0]) != 2:
+        if len(scards[0]) != 2 or len(scards) < 2:
             return None
         elif len(scards[1]) != 2:
             return None
         else:
             return scards[0] + scards[1] + [scards[2][0]]
+
 
     def __check_pair__(self, cards):
         """
