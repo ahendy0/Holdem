@@ -85,7 +85,7 @@ class Deck(object):
         elif suit == 4:
             suit = Suit.CLUBS
         else:
-            print 'Suit is not as expected'
+            print'Suit is not as expected'
         return Card(rank, suit)
 
 class CombType(object):

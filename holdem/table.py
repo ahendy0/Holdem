@@ -27,7 +27,7 @@ class Table(object):
         """Registers player for current table"""
         # if player doesnt have enough money, dont add them
         if player.cash_amount < self.min_buyin:
-            print "player %d is out of chips" % player.plid
+            #### print"player %d is out of chips" % player.plid
             return
 
         if bot:
@@ -55,27 +55,32 @@ class Table(object):
 
 
     def display_cards(self, game_info):
-        print self.msg_separator
-        print "Diler hands out next card(s): %s" % game_info['cards'][-1]
+        pass
+        #### printself.msg_separator
+        #### print"Diler hands out next card(s): %s" % game_info['cards'][-1]
 
     def display_move(self, move):
+        pass
         # print self.msg_separator
-        print '\tPlayer with id %r decided to %r with %r' \
-                % (move['plid'], 
-                   move['decision'].dec_type,
-                   move['decision'].value)
+        #### print'\tPlayer with id %r decided to %r with %r' \
+                # % (move['plid'],
+                #    move['decision'].dec_type,
+                #    move['decision'].value)
 
     def display_move_start(self):
-        print self.msg_separator 
+        pass
+        #### printself.msg_separator
 
     def on_game_started(self):
-        print self.msg_separator 
-        print '--- So, let the game begin! ---'
+        pass
+        #### printself.msg_separator
+        #### print'--- So, let the game begin! ---'
 
     def announce_win(self, plid, comb, amount):
-        print self.msg_separator
-        print 'Player %r wins %r with %r: %r' \
-                % (plid,
-                   amount,
-                   comb[0],
-                   comb[1])
+        pass
+        #### printself.msg_separator
+        #### print'Player %r wins %r with %r: %r' \
+                # % (plid,
+                #    amount,
+                #    comb[0],
+                #    comb[1])

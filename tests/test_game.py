@@ -72,7 +72,7 @@ class TestGameMethods(unittest.TestCase):
              }
         game_info['moves'].append([m1, m2])
         pots = self.game.__calculate_pots__(game_info)
-        print pots
+        #### printpots
 
 
 if __name__ == '__main__':

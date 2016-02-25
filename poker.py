@@ -1,21 +1,24 @@
 from holdem.table import *
 from holdem.player import *
 from holdem.game import *
+import datetime
+import numpy as np
 
 import matplotlib.pyplot as plt
 
-#params
+start_time = datetime.datetime.now()
+
+
+
 bankrolls = []
-numplayers = 10
+numplayers = 7
 bankroll = 400
-seatscount = 10
 sb = 2
 bb = 4
 minbuy = 1
 
 bankhistory = [[] for i in xrange(numplayers)]
-numbhands = 100000
-
+numbhands = 1000
 
 #initialize bankrolls
 for plid in xrange(numplayers):
@@ -23,30 +26,42 @@ for plid in xrange(numplayers):
 
 
 for handid in xrange(numbhands):
-    table = Table('table1', sb, bb, seatscount, minbuy)
+    table = Table('table1', sb, bb, numplayers, minbuy)
     for player in bankrolls:
         #add player bots
         table.add_player(
             Player('p'+str(player['plid']), player['bankroll'], player['plid']),
             bot=True
         )
-        #add to bankhistory
-        bankhistory[player['plid']].append(player['bankroll'])
- 
+
+    #time counter
+    if (handid % 1000) == 0:
+        temp = datetime.datetime.now()
+        print "current elapsed time: ", temp - start_time, " at hand ", handid
+        # print "current elapsed time: ", temp - start_time, " at hand ", handid
+
     
-    if len(table.players) == 1:
-        print "WINNER IS: player %s" % table.players[0].plid
-        break
-    else:
-        print "beginning next round"
     game = Game(table)
-    bankrolls = game.play_hand()
+    br = game.play_hand()
+    
+    #interpert data
+    for player in br:
+        #normalize to multiples of bb
+        bankhistory[player['plid']].append((player['bankroll'] - bankroll)/bb)
     
     
-    
+end_time = datetime.datetime.now()
+print "time taken: ", end_time - start_time
+
+
+
 #plot bankroll vs handid for all players
+
 for i in xrange(numplayers):
-    plt.plot(bankhistory[i])
+    #cumalative sum
+    plt.plot(np.cumsum(bankhistory[i]))
+
+  
 plt.ylabel('Stack size')
 plt.xlabel('hands')
 plt.show()

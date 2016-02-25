@@ -26,17 +26,17 @@ class PlayerAtTable(object):
         """
         Implementation of player's strategy.
         """
-        print "Now it is %r players move" % self.plid
+        #### print"Now it is %r players move" % self.plid
         # List of rounds
         mrounds = game_info['moves']
         # Making a list of moves in current round
         moves = mrounds[-1]
         if len(mrounds) == 1 and len(moves) == 0:
-            print "Player's move: small blind - %r" %game_info['sbl']
+            #### print"Player's move: small blind - %r" %game_info['sbl']
             return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.BET, game_info['sbl'])}
         if len(mrounds) == 1 and len(moves) == 1:
-            print "Player's move: big blind - %r" %game_info['bbl']
+            #### print"Player's move: big blind - %r" %game_info['bbl']
             return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.RAISE, game_info['bbl'])}
         # Calculate current maximum pot share, that will be minumum bet
@@ -70,13 +70,13 @@ class PlayerAtTable(object):
 
         # print "Cards on table: %r" % game_info['cards']
         # print "Pocket cards: %r" % self.cards
-        print "Minimal allowed bet is: %r" % min_bet
-        print "Maximum allowed bet is: %r" % self.bankroll
+        #### print"Minimal allowed bet is: %r" % min_bet
+        #### print"Maximum allowed bet is: %r" % self.bankroll
         # Last not FOLD and not ALLIN decision type
         if last_move != None:
             last_dec_type = last_move['decision'].dec_type
         while True:
-            # print "You have %r chips" % self.bankroll
+            # #### print"You have %r chips" % self.bankroll
             # print "Make a bet or fold: 'f'."
             '''
             BETTING STRUCTURE (out of 6 options):
@@ -131,7 +131,8 @@ class PlayerAtTable(object):
                 return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.ALLINLOWER, bet)}
             else:
-                print "You've made a wrong bet. Try again."
+                pass
+                #### print"You've made a wrong bet. Try again."
 
 
     def take_sit(self, available_sits):
@@ -172,17 +173,17 @@ class CLIPlayer(Player):
         """
         Implementation of player's strategy.
         """
-        print "Now it is %r players move" % self.plid
+        #### print"Now it is %r players move" % self.plid
         # List of rounds
         mrounds = game_info['moves']
         # Making a list of moves in current round
         moves = mrounds[-1]
         if len(mrounds) == 1 and len(moves) == 0:
-            print "Player's move: small blind - %r" %game_info['sbl']
+            #### print"Player's move: small blind - %r" %game_info['sbl']
             return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.BET, game_info['sbl'])}
         if len(mrounds) == 1 and len(moves) == 1:
-            print "Player's move: big blind - %r" %game_info['bbl']
+            #### print"Player's move: big blind - %r" %game_info['bbl']
             return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.RAISE, game_info['bbl'])}
         # Calculate current maximum pot share, that will be minumum bet
@@ -214,16 +215,16 @@ class CLIPlayer(Player):
             last_move = move
             break 
             
-        print "Cards on table: %r" % game_info['cards']
-        print "Pocket cards: %r" % self.cards
-        print "Minimal allowed bet is: %r" % min_bet
-        print "Maximum allowed bet is: %r" % self.bankroll
+        #### print"Cards on table: %r" % game_info['cards']
+        #### print"Pocket cards: %r" % self.cards
+        #### print"Minimal allowed bet is: %r" % min_bet
+        #### print"Maximum allowed bet is: %r" % self.bankroll
         # Last not FOLD and not ALLIN decision type
         if last_move != None:
             last_dec_type = last_move['decision'].dec_type
         while True:
-            print "You have %r chips" % self.bankroll
-            print "Make a bet or fold: 'f'."
+            #### print"You have %r chips" % self.bankroll
+            #### print"Make a bet or fold: 'f'."
 
             # TODO: for our bot, replace raw_input, with our algorithm for determining bet
             bet = raw_input("Please, make a bet: ")
@@ -257,18 +258,19 @@ class CLIPlayer(Player):
                 return {'plid': self.player.plid,
                     'decision': Decision(DecisionType.ALLINLOWER, bet)}
             else:
-                print "You've made a wrong bet. Try again."
+                pass
+                #### print"You've made a wrong bet. Try again."
        
     def take_sit(self, available_sits):
         """Player chooses a sit among available"""
-        print "Currently available sits are: %r" % available_sits
+        #### print"Currently available sits are: %r" % available_sits
         self.sit = int(available_sits[0])
 
 
     def make_buyin(self, min_buyin):
         """Player makes a buy-in"""
-        print "Your cash amount is: %r. Min buyin for this table is: %r" \
-               % (self.player.cash_amount, min_buyin) 
+        #### print"Your cash amount is: %r. Min buyin for this table is: %r" \
+               #% (self.player.cash_amount, min_buyin)
 
         while True:
             # buyin = int(raw_input("Please, choose an amount of chips to start with: "))
@@ -279,7 +281,8 @@ class CLIPlayer(Player):
                 self.bankroll += buyin 
                 break
             else:
-                print "Your choise doesn't satisfy given constraints"
+                pass
+                #### print"Your choise doesn't satisfy given constraints"
 
 
     def receive_surplus(self, value):
