@@ -11,21 +11,21 @@ start_time = datetime.datetime.now()
 
 
 bankrolls = []
-numplayers = 7
+numplayers = 3
 bankroll = 400
 sb = 2
 bb = 4
 minbuy = 1
 
 bankhistory = [[] for i in xrange(numplayers)]
-numbhands = 1000
+numhands = 1000
 
 #initialize bankrolls
 for plid in xrange(numplayers):
     bankrolls.append({'bankroll':bankroll, 'plid':plid})
 
 
-for handid in xrange(numbhands):
+for handid in xrange(numhands):
     table = Table('table1', sb, bb, numplayers, minbuy)
     for player in bankrolls:
         #add player bots
