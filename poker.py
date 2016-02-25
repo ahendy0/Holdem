@@ -1,8 +1,12 @@
 from holdem.table import *
 from holdem.player import *
 from holdem.game import *
+import datetime
 
 import matplotlib.pyplot as plt
+
+start_time = datetime.datetime.now()
+print "start time: ", start_time.time()
 
 bankrolls = []
 numplayers = 10
@@ -14,7 +18,6 @@ minbuy = 100
 
 bankhistory = [[] for i in xrange(numplayers)]
 numbhands = 100000
-
 
 #initialize bankrolls
 for plid in xrange(numplayers):
@@ -29,22 +32,31 @@ for handid in xrange(numbhands):
             Player('p'+str(player['plid']), player['bankroll'], player['plid']),
             bot=True
         )
-        #add to bankhistory
-        bankhistory[player['plid']].append(player['bankroll'])
-        
+
+    if (handid % 1000) == 0:
+        temp = datetime.datetime.now()
+        print "current elapsed time: ", temp - start_time, " at hand ", handid
+        # print "current elapsed time: ", temp - start_time, " at hand ", handid
         
         
     
     if len(table.players) == 1:
-        print "WINNER IS: player %s" % table.players[0].plid
+        #### print"WINNER IS: player %s" % table.players[0].plid
         break
     else:
-        print "beginning next round"
+        pass
+        #### print"beginning next round"
     game = Game(table)
-    bankrolls = game.play_hand()
+    bankroll2 = game.play_hand()
+    #add to bankhistory
+    # players werent actually updated (they are just used to create different types of players [cli or bot])
+    # so had to grab a copy of bankrolls returned, and use that
+    for player in bankroll2:
+        bankhistory[player['plid']].append(player['bankroll'])
     
     
-    
+end_time = datetime.datetime.now()
+print "time taken: ", end_time - start_time
 #plot bankroll vs handid for all players
 for i in xrange(numplayers):
     plt.plot(bankhistory[i])
