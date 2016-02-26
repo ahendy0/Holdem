@@ -140,6 +140,7 @@ def parse_player(line):
     stackstr = re.search('\$([\d,.]*)', line).group(1)
     stack = float(stackstr.replace(',', ''))
     seat = int(re.search('Seat (\d) -', line).group(1))
+    print name, stack
     return PlayerinHand(name, stack, seat)
     
     
@@ -169,14 +170,31 @@ def parse_action(line, player, info):
     amount = 0
     if type != ActionType.FOLD and type != ActionType.CHECK:
         amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
-    #print player, info , type.name, amount
+    player.stack -= amount
+    print player, info.name , type.name, amount, player.stack
     return Action(type, info, amount, player)
+    
+def parse_action_line(line, curhand, info):
+    playername = re.search('(.*) -', line).group(1)
+    player = curhand.find_player_by_name(playername)
+    if "returned" in line: #ignore returned as it is not player action
+        amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
+        player.stack += amount
+    else:
+        action = parse_action(line, player, info)
+        curhand.actions.append(action)
     
 def parse_board(str):
     boardstr = re.search('(\[.*\])', line).group(1)
     boardstr = boardstr.replace('[', '').replace(']', '')
     return boardstr
     
+def parse_collect(line, curhand):
+    playername = re.search('(.*) Col', line).group(1)
+    player = curhand.find_player_by_name(playername)
+    amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
+    player.stack += amount
+    print playername, "collects", amount
 
 
 if __name__ == "__main__":
@@ -238,7 +256,6 @@ if __name__ == "__main__":
                             #print "removed" + " " + str(action)
                 elif "returned" not in line: #ignore returned as player is deleted
                     action = parse_action(line, player, ActionInfo.PREDEAL)
-                    player.stack -= action.amount
                     curhand.actions.append(action)
             
              
@@ -250,16 +267,7 @@ if __name__ == "__main__":
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
             else:
-                playername = re.search('(.*) -', line).group(1)
-                player = curhand.find_player_by_name(playername)
-                if "returned" in line: #ignore returned as it is not player action
-                    amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
-                    player.stack += amount
-                else:
-                    action = parse_action(line, player, ActionInfo.PREFLOP)
-                    player.stack -= action.amount
-                    curhand.actions.append(action)
-                
+                parse_action_line(line, curhand, ActionInfo.PREFLOP)
         elif parserstate == ParseState.PFLOP:
             if "TURN" in line:
                 board = parse_board(line)
@@ -268,15 +276,7 @@ if __name__ == "__main__":
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
             else:
-                playername = re.search('(.*) -', line).group(1)
-                player = curhand.find_player_by_name(playername)
-                if "returned" in line: #ignore returned as it is not player action
-                    amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
-                    player.stack += amount
-                else:
-                    action = parse_action(line, player, ActionInfo.FLOP)
-                    player.stack -= action.amount
-                    curhand.actions.append(action)
+                parse_action_line(line, curhand, ActionInfo.FLOP)
         elif parserstate == ParseState.PTURN:
             if "RIVER" in line:
                 board = parse_board(line)
@@ -285,81 +285,81 @@ if __name__ == "__main__":
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
             else:
-                playername = re.search('(.*) -', line).group(1)
-                player = curhand.find_player_by_name(playername)
-                if "returned" not in line: #ignore returned as it is not player action
-                    action = parse_action(line, player, ActionInfo.TURN)
-                    player.stack -= action.amount
-                    curhand.actions.append(action)
+                parse_action_line(line, curhand, ActionInfo.TURN)
         elif parserstate == ParseState.PRIVER:
             if "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
             else:
-                playername = re.search('(.*) -', line).group(1)
-                player = curhand.find_player_by_name(playername)
-                if "returned" in line: #ignore returned as it is not player action
-                    amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
-                    player.stack += amount
-                else:
-                    action = parse_action(line, player, ActionInfo.RIVER)
-                    player.stack += action.amount
-                    curhand.actions.append(action)
+                parse_action_line(line, curhand, ActionInfo.RIVER)
+                
         elif parserstate == ParseState.PSHOWDOWN:
             if "SUMMARY" in line:
                 parserstate = ParseState.PSUMMARY
-            elif "Collects" in line: 
-                playername = re.search('(.*) Col', line).group(1)
-                player = curhand.find_player_by_name(playername)
-                amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
-                player.stack += amount
+            elif "Collects" in line:
+                parse_collect(line, curhand)
+                
         elif parserstate == ParseState.PSUMMARY:
             curhand.showdown = True
             #TODO PARSE PLAYER HANDS
             if "Pot" in line:
                 curhand.totalpot =  float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
             else:
+                #DEBUG
+                for player in curhand.players:
+                    print player.stack
+                #DEBUG
                 curtable.hands.append(curhand)
                 curhand = None
                 parserstate = ParseState.PSTAGE
+                
+                
+                
+                
+                
+                
+    for hand in tablelist[0].hands:
+        for action in hand.actions:
+            print action
             
     #Try to find which players played the most hands and plot their winnings           
-    playerlist = []
-    playerwinnings = []
+    # playerlist = []
+    # playerwinnings = []
     
-    def findplayerindex(playerlist, playername):
-        index = -1
-        for p in playerlist:
-            index += 1
-            if p == playername:
-                return index 
-        return -1
+
+    # def findplayerindex(playerlist, playername):
+        # index = -1
+        # for p in playerlist:
+            # index += 1
+            # if p == playername:
+                # return index 
+        # return -1
     
-    for table in tablelist:
-        for hand in table.hands:
-            for player in hand.players:
-                index = findplayerindex(playerlist, player.name)
-                if index == -1:
-                    playerlist.append(player.name)
-                    index = len(playerlist) - 1
-                    playerwinnings.append([])
-                playerwinnings[index].append(player.stack - player.origstack)
+    # for table in tablelist:
+        # for hand in table.hands:
+            # for player in hand.players:
+                # index = findplayerindex(playerlist, player.name)
+                # if index == -1:
+                    # playerlist.append(player.name)
+                    # index = len(playerlist) - 1
+                    # playerwinnings.append([])
+                # playerwinnings[index].append(player.stack - player.origstack)
                 
-    max = 0
-    maxi = 0
-    for i in xrange(len(playerwinnings)):
-        sum = np.sum(playerwinnings[i])
-        if  sum > max:
-            max = sum
-            maxi = i
-    print max
-    print playerlist[maxi]
+    # max = 0
+    # maxi = 0
+    # for i in xrange(len(playerwinnings)):
+        # sum = np.sum(playerwinnings[i])
+        # if  sum > max:
+            # max = sum
+            # maxi = i
+    # print max
+    # print playerlist[maxi]
         
-    plt.plot(np.cumsum(playerwinnings[maxi]))
+    # plt.plot(np.cumsum(playerwinnings[maxi]))
 
       
-    plt.ylabel('Stack size')
-    plt.xlabel('hands')
-    plt.show()               
+    # plt.ylabel('Stack size')
+    # plt.xlabel('hands')
+    # plt.show()               
 
                 
                 
