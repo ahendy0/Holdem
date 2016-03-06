@@ -24,7 +24,7 @@ class Hand:
         self.board = None
         self.players = [] #dealer is always first player in list
         self.actions = []
-        self.winners = None
+        self.winners = []
         self.showdown = False #does this hand go to showdown
         self.totalpot = 0
         
@@ -184,16 +184,17 @@ def parse_action_line(line, curhand, info):
         action = parse_action(line, player, info)
         curhand.actions.append(action)
     
-def parse_board(str):
+def parse_board(str, hand):
     boardstr = re.search('(\[.*\])', line).group(1)
     boardstr = boardstr.replace('[', '').replace(']', '')
-    return boardstr
+    hand.board = boardstr
     
 def parse_collect(line, curhand):
     playername = re.search('(.*) Col', line).group(1)
     player = curhand.find_player_by_name(playername)
     amount = float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
     player.stack += amount
+    curhand.winners.append(player)
     print playername, "collects", amount
 
 
@@ -261,8 +262,7 @@ if __name__ == "__main__":
              
         elif parserstate == ParseState.PPREFLOP:
             if "FLOP" in line:
-                board = parse_board(line)
-                curhand.board = board
+                parse_board(line, curhand)
                 parserstate = ParseState.PFLOP
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
@@ -270,8 +270,7 @@ if __name__ == "__main__":
                 parse_action_line(line, curhand, ActionInfo.PREFLOP)
         elif parserstate == ParseState.PFLOP:
             if "TURN" in line:
-                board = parse_board(line)
-                curhand.board = board
+                parse_board(line, curhand)
                 parserstate = ParseState.PTURN
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
@@ -279,8 +278,7 @@ if __name__ == "__main__":
                 parse_action_line(line, curhand, ActionInfo.FLOP)
         elif parserstate == ParseState.PTURN:
             if "RIVER" in line:
-                board = parse_board(line)
-                curhand.board = board
+                parse_board(line, curhand)
                 parserstate = ParseState.PRIVER
             elif "SHOW DOWN" in line:
                 parserstate = ParseState.PSHOWDOWN
