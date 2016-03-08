@@ -4,6 +4,7 @@ from holdem.table import *
 from holdem.diler import *
 from holdem.player import *
 from holdem.different import *
+from holdem.naivebots import naive_min
 from copy import deepcopy
 
 class TestGameMethods(unittest.TestCase):
@@ -13,9 +14,15 @@ class TestGameMethods(unittest.TestCase):
         self.player1 = Player('p1', 300, 1)
         self.player2 = Player('p2', 300, 2)
         self.player3 = Player('p3', 300, 3)
-        self.table.add_player(self.player1)
-        self.table.add_player(self.player2)
-        self.table.add_player(self.player3)
+        self.player4 = Player('p4', 300, 4)
+        self.table.add_player(self.player1, True)
+        self.table.add_player(self.player2, True)
+        self.table.add_player(self.player3, True)
+        self.table.add_player(self.player4, True)
+
+        for tableplayer in self.table.players:
+
+            tableplayer.make_move = naive_min.make_move
         self.game = Game(self.table) 
    
     def test___determine_winners__(self):
@@ -33,8 +40,8 @@ class TestGameMethods(unittest.TestCase):
         self.game.players[2].cards = [Card(Rank.KING, Suit.SPADES),
                                       Card(Rank.QUEEN, Suit.DIAMONDS)]
 
-        winners_ids = self.game.__determine_winners__()
-        self.assertEqual(winners_ids, [1, 2])
+        winners_ids = self.game.__determine_winners__(self.game.game_info,self.game.players)
+        self.assertEqual([w_id[0] for w_id in winners_ids], [1, 2])
 
     def test___player_by_id__(self):
         self.assertEqual(self.game.__player_by_id__(2), self.game.players[1])
@@ -54,7 +61,7 @@ class TestGameMethods(unittest.TestCase):
              }
         m4 = {
                 'plid': 1,
-                'decision': Decision(DecisionType.ALLIN, 20)
+                'decision': Decision(DecisionType.ALLINLOWER, 20)
              }
         m5 = {
                 'plid': 2,
@@ -68,7 +75,7 @@ class TestGameMethods(unittest.TestCase):
              }
         m2 = {
                 'plid': 3,
-                'decision': Decision(DecisionType.ALLIN, 30)
+                'decision': Decision(DecisionType.ALLINLOWER, 30)
              }
         game_info['moves'].append([m1, m2])
         pots = self.game.__calculate_pots__(game_info)
