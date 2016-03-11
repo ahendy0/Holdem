@@ -19,6 +19,7 @@ class Evaluator(object):
         self.table = LookupTable()
         
         self.hand_size_map = {
+            2 : self._two,
             5 : self._five,
             6 : self._six,
             7 : self._seven
@@ -33,6 +34,21 @@ class Evaluator(object):
         """
         all_cards = cards + board
         return self.hand_size_map[len(all_cards)](all_cards)
+        
+        
+    def _two(self, cards):
+                    
+
+        #returns a rank 7463 - 7631. Based on chens formula
+        # if suited
+        if cards[0] & cards[1] &  0xF000:
+            handOR = (cards[0] | cards[1]) >> 16
+            prime = Card.prime_product_from_rankbits(handOR)
+            return self.table.flush_lookup[prime]
+        else: 
+           prime = Card.prime_product_from_hand(cards)
+           return self.table.unsuited_lookup[prime]
+
 
     def _five(self, cards):
         """

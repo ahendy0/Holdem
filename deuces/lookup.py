@@ -70,6 +70,84 @@ class LookupTable(object):
         self.flushes()  # this will call straights and high cards method,
                         # we reuse some of the bit sequences
         self.multiples()
+        
+        self.holecards()
+        
+    def holecards(self):
+
+        #         2  3  4  5  6   7   8   9   10  J   Q   K   A
+        PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41]
+        #make suited/unsuited combinations
+        unsuited = itertools.combinations_with_replacement(xrange(0,13), 2)
+        suited = itertools.combinations(xrange(0,13), 2)
+        
+        
+        #use chens to calculate value then sort and add to dic
+        list = []
+        for hand in unsuited:
+            list.append([hand, self.chens(hand), False])
+        
+        # same for suited
+        for hand in suited:
+            list.append([hand, self.chens(hand, True), True])
+        
+        list = sorted(list, key=lambda tup: tup[1], reverse=True)
+        
+        
+        #add ti duc
+        i=0
+        for tup in list:
+            i += 1
+            prime = PRIMES[tup[0][0]] * PRIMES[tup[0][1]]
+            #suited unsuited
+            if tup[2]:
+                self.flush_lookup[prime] = 7462 + i
+            else:
+                self.unsuited_lookup[prime] = 7462 + i
+            
+        
+        
+
+    def chens(self, tuple, suited=False):
+        #Based on the highest card, assign points as follows:
+        #Ace = 10 points, K = 8 points, Q = 7 points, J = 6 points.
+        #10 through 2, half of face value (10 = 5 points, 9 = 4.5 points, etc.)
+        value = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 10]
+        points = 0 
+        
+        if tuple[0] > tuple[1]:
+            points += value[tuple[0]]
+        else: 
+             points += value[tuple[1]]
+        
+        #For pairs, multiply the points by 2 (AA=20, KK=16, etc.), with a minimum of 5 points for any pair. 55 is given an extra point (i.e., 6).
+        if tuple[0] == tuple[1]:
+            points *= 2
+            if points < 5:
+                points = 5
+            if tuple[0] == 5:
+                points  = 6
+                
+        #Add 2 points for suited cards.        
+        if suited:
+            points += 2
+            
+        #Subtract 1 point for 1 gappers (AQ, J9)
+        # 2 points for 2 gappers (J8, AJ).
+        # 4 points for 3 gappers (J7, 73).
+        # 5 points for larger gappers, including A2 A3 A4
+        
+        if abs(tuple[1] - tuple[0]) == 1:
+            points -= 1
+        elif abs(tuple[1] - tuple[0]) == 2:
+            points -= 2
+        elif abs(tuple[1] - tuple[0]) == 3:
+            points -= 4
+        elif abs(tuple[1] - tuple[0]) > 3:
+            points -= 4
+            
+        return points
+
 
     def flushes(self):
         """
