@@ -1,9 +1,5 @@
 from enum import Enum
 
-
-
-
-
 class Table:
     def __init__(self, name, type, bb, ante):
         self.name = name
@@ -11,6 +7,11 @@ class Table:
         self.bb = bb
         self.ante = ante
         self.hands = []
+        
+        
+    
+    def numhands(self):
+        return len(self.hands)
         
     def __eq__(self, other):
         return self.name == other.name and self.type == other.type and self.bb == other.bb and self.ante == other.ante
@@ -28,6 +29,13 @@ class Hand:
         self.showdown = False #does this hand go to showdown
         self.totalpot = 0
         
+    #instead of using self.showdown use self.showdown()
+    def showdown(self):
+        for winner in self.winners:
+                if winner.hand != None:
+                    return True
+        return False
+        
         
     def find_player_by_name(self, name):
         for player in self.players:
@@ -39,7 +47,10 @@ class Board:
     def __init__(self, cards):
         self.cards = cards
         
-class PlayerinHand:
+    def __str__(self):
+        return self.cards
+        
+class Player:
     def __init__(self, name, stack, seat):
         self.name = name
         self.origstack = stack #original stack size used to calc the net in the hand
@@ -47,6 +58,9 @@ class PlayerinHand:
         self.seat = seat
         self.hand = None
            
+    def net(self):
+        return self.stack - self.origstack
+        
     def __str__(self):
         return self.name
         
@@ -72,14 +86,14 @@ class Action:
 
 
 class ActionType(Enum):
-    ANTE = 0
-    POST = 1
-    BET = 2
-    CALL = 3
-    FOLD = 4
-    RAISE = 5
-    CHECK = 6
-    ALLIN = 7
+    FOLD = 0
+    BET = 1
+    CALL = 2
+    RAISE = 3
+    CHECK = 4
+    ALLIN = 5
+    ANTE = 6
+    POST = 7
     TIMEOUT = 8
     
     
