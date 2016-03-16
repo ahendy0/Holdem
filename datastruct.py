@@ -30,11 +30,12 @@ class Hand:
         self.totalpot = 0
         
     #instead of using self.showdown use self.showdown()
-    def showdown(self):
+    def has_known_hands(self):
+        count = 0
         for winner in self.winners:
                 if winner.hand != None:
-                    return True
-        return False
+                    count += 1
+        return count
         
         
     def find_player_by_name(self, name):

@@ -42,7 +42,8 @@ def find_top_players(tablelist):
             for player in hand.players:
                 if player.name in playerlist:
                     playerlist[player.name][0] += player.net()
-                    playerlist[player.name][1] += 1
+                    if hand.has_known_hands():
+                        playerlist[player.name][1] += 1
                 else:
                     playerlist[player.name] = [player.net(), 0]
                     
@@ -57,7 +58,8 @@ def find_top_players_ratio(tablelist, minhands, numreturn):
             for player in hand.players:
                 if player.name in playerlist:
                     playerlist[player.name][0] += player.net()
-                    playerlist[player.name][1] += 1
+                    if hand.has_known_hands():
+                        playerlist[player.name][1] += 1
                 else:
                     playerlist[player.name] = [player.net(), 0]
     # net/hands played
@@ -88,7 +90,7 @@ if __name__ == "__main__":
     print count_known_cards(tablelist)
     top_players = find_top_players(tablelist)
     # table, minhands to be considered, number of players to return
-    top_ratio_players = find_top_players_ratio(tablelist, 500, 10)
+    top_ratio_players = find_top_players_ratio(tablelist, 100, 10)
     # --------- some printing to show the differences between top players, and top players based on ratio
     print 'tp', top_players
     print 'trp', top_ratio_players
@@ -109,4 +111,7 @@ if __name__ == "__main__":
     print count, 'players in common'
     print 'top player total hands:', top_player_hand_count
     print 'top ratio based player total hands:', top_player_ratio_hand_count
+    
+    
+    
     

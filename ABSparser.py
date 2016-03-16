@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import datetime
 from datastruct import *
 import os
-import sys
 import traceback
+import cPickle
     
 class ParseState(Enum):
     PSTAGE = 0
@@ -59,7 +59,7 @@ def parse_player(line):
     stack = float(stackstr.replace(',', ''))
     seat = int(re.search('Seat (\d) -', line).group(1))
     #print name, stack
-    return PlayerinHand(name, stack, seat)
+    return Player(name, stack, seat)
     
     
 def get_acttype_from_str(str):
@@ -102,10 +102,10 @@ def parse_action_line(line, curhand, info):
         action = parse_action(line, player, info)
         curhand.actions.append(action)
     
-def parse_board(line, hand):
+def parse_board(line, curhand):
     boardstr = re.search('(\[.*\])', line).group(1)
     boardstr = boardstr.replace('[', '').replace(']', '')
-    hand.board = Board(boardstr)
+    curhand.board = Board(boardstr)
     
 def parse_collect(line, curhand):
     playername = re.search('(.*) Col', line).group(1)
@@ -130,7 +130,6 @@ def hands_in_list(tablelist):
 
 def parse_file(file):
     tablelist = []
-    counter = 0
     
     parserstate = ParseState.PSTAGE
     curhand = None
@@ -147,7 +146,6 @@ def parse_file(file):
         try:#capturing an error will skip the hand
             if parserstate == ParseState.PSTAGE:
                if "Stage" in line:
-                    counter += 1
                     hid, curtype, curbb, curante = parse_stage(line)
                     curhand = Hand(hid)
                     parserstate = ParseState.PTABLE
@@ -224,12 +222,12 @@ def parse_file(file):
                 if "SUMMARY" in line:
                     parserstate = ParseState.PSUMMARY
                 elif "Shows" in line:
+                    curhand.showdown = True
                     parse_cards(line, curhand)
                 elif "Collects" in line:
                     parse_collect(line, curhand)
                     
             elif parserstate == ParseState.PSUMMARY:
-                curhand.showdown = True
                 if "Pot" in line:
                     curhand.totalpot =  float(re.search('\$([\d,.]*)', line).group(1).replace(',',''))
                 else:
@@ -239,11 +237,11 @@ def parse_file(file):
                           
         except Exception as e:
             parserstate = ParseState.PSTAGE
-            traceback.print_exc()
-            print line 
-            print "Skipping hand"
+            #traceback.print_exc()
+            #print line 
+            print "hand skipped"
                 
-    print "Parsed", counter, "hands"           
+    print "Parsed", hands_in_list(tablelist), "hands"           
     return tablelist
                 
     def tester(tablelist):
@@ -287,25 +285,60 @@ def parse_file(file):
         plt.xlabel('hands')
         plt.show()               
 
+        
+def serialize_chunk(tablelist, out_folder, out_name, file_ext, file_cnt, hand_cnt):
+    #now serialize the data with the cPickle module
+    filename = out_folder + out_name + str(file_cnt) + file_ext
+    print "Serializing", hand_cnt, "hands to file", filename
+    start_time = datetime.datetime.now()
+    output = open(filename, 'wb')
+    cPickle.dump(tablelist, output)
+    end_time = datetime.datetime.now()
+    print "cPickle time taken: ", end_time - start_time    
+                    
+        
 
 if __name__ == "__main__":
-
     #if you want to try parsing the data, create a folder called Holdem/data. unzip all the files from http://web.archive.org/web/20110205042259/http://www.outflopped.com/questions/286/obfuscated-datamined-hand-histories into that folder and run.
     #currently this version only works on ABS logs.
     tablelist = []
-    for folder in os.listdir('./data/'):
-        for logfile in  os.listdir('./data/' + folder):
-            print "Parsing file:" + './data/' + folder + '/' + logfile
+    rawdata_folder = './rawABSdata/'
+    out_folder = './ABSdata/'
+    out_name = 'ABSdata_'
+    file_ext = '.pkl' 
+    file_cnt  = 0
+    hand_cnt = 0
+    maxhands = 100000 #how many hands per file actual amount may be more 
+    total_start_time = datetime.datetime.now()
+    
+    #create dir if not exists
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
+    
+    
+    
+    #data has to be partitioned in many files otherwise computer runs out of memory while parsing :(
+    for folder in os.listdir(rawdata_folder):
+        for logfile in  os.listdir(rawdata_folder + folder):
+            print "Parsing file:" + rawdata_folder + folder + '/' + logfile
             start_time = datetime.datetime.now()
-            file = open('./data/' + folder + '/' + logfile, 'r')
+            file = open(rawdata_folder + folder + '/' + logfile, 'r')
             list = parse_file(file)
             tablelist.extend(list)
+            if hands_in_list(tablelist) > maxhands:
+                file_cnt += 1
+                serialize_chunk(tablelist, out_folder, out_name, file_ext, file_cnt, hands_in_list(tablelist))
+                hand_cnt += hands_in_list(tablelist)
+                tablelist = []
             end_time = datetime.datetime.now()
-            print "time taken: ", end_time - start_time            
-    print "Parsed" , hands_in_list(tablelist), "total hands"
+            print "time taken: ", end_time - start_time
+           
+            
+    totaltime = datetime.datetime.now() - total_start_time
+    print "Parsed" , hand_cnt , "total hands in" , totaltime
+    print "Created" , file_cnt, "files in", out_folder
                 
             
- 
-                
+
                 
                 

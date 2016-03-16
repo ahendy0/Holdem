@@ -3,4 +3,8 @@
 .idea
 workspace.xml
 ABSdata.zip
-ABSdata/ABSdata_1.pkl
+ABSdata
+data.pkl
+datatest.txt
+datatest2.txt
+rawABSdata
