@@ -2,3 +2,5 @@
 *.pyc
 .idea
 workspace.xml
+ABSdata.zip
+ABSdata/ABSdata_1.pkl

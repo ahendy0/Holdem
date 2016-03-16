@@ -47,6 +47,30 @@ def find_top_players(tablelist):
                     playerlist[player.name] = [player.net(), 0]
                     
     return  sorted(playerlist.items(), key=lambda value: value[1][0], reverse=True)[0:10]
+
+
+def find_top_players_ratio(tablelist, minhands, numreturn):
+    #[net, amount of hands]
+    playerlist = {}
+    for table in tablelist:
+        for hand in table.hands:
+            for player in hand.players:
+                if player.name in playerlist:
+                    playerlist[player.name][0] += player.net()
+                    playerlist[player.name][1] += 1
+                else:
+                    playerlist[player.name] = [player.net(), 0]
+    # net/hands played
+    return  sorted(playerlist.items(), key=lambda value: safe_weighted_division(value[1][0], value[1][1], minhands), reverse=True)[0:numreturn]
+
+def safe_weighted_division(net, hands, minhands):
+    if hands <= minhands:
+        return 0
+    try:
+        return net / hands
+    except ZeroDivisionError:
+        return 0
+
             
 
 
@@ -58,9 +82,31 @@ if __name__ == "__main__":
     tablelist = cPickle.load(pfile)
     
     """find the number of hands in tablelist"""
-    print "There is", hands_in_list(tablelist), "hands in this file."
+    # print "There is", hands_in_list(tablelist), "hands in this file."
     
     
     print count_known_cards(tablelist)
-    print find_top_players(tablelist)
+    top_players = find_top_players(tablelist)
+    # table, minhands to be considered, number of players to return
+    top_ratio_players = find_top_players_ratio(tablelist, 500, 10)
+    # --------- some printing to show the differences between top players, and top players based on ratio
+    print 'tp', top_players
+    print 'trp', top_ratio_players
+    print '---in common players---'
+    top_player_names = []
+    top_player_hand_count = 0
+    for i in top_players:
+        top_player_names.append(i[0])
+        top_player_hand_count += i[1][1]
+    count = 0
+    top_player_ratio_hand_count = 0
+    for player in top_ratio_players:
+        top_player_ratio_hand_count += player[1][1]
+        if player[0] in top_player_names:
+            count += 1
+            print player
+    print ''
+    print count, 'players in common'
+    print 'top player total hands:', top_player_hand_count
+    print 'top ratio based player total hands:', top_player_ratio_hand_count
     
