@@ -15,7 +15,13 @@ class GameState:
         self.card_info = card_info #the state of the cards. prob follow same format as datastruct. Predeal should be ignored  PREDEAL = 0 PREFLOP = 1 FLOP = 2 TURN = 3 RIVER = 4 
         self.potsize = potsize  #the size of the current pot. relative to the table? relative to your stacksize?
 
-
+def stack_size(bb, stacksize): 
+    buy_in = 
+    
+        
+        
+        
+        
 def hands_in_list(tablelist):
     numhands = 0
     for table in tablelist:
@@ -33,51 +39,66 @@ def count_known_cards(tablelist):
                     
     return i
 
-    
-def find_top_players(tablelist):
+def find_top_players(tablelist, netthresh, handsthresh):
     #[net, amount of hands]
     playerlist = {}
     for table in tablelist:
         for hand in table.hands:
             for player in hand.players:
                 if player.name in playerlist:
-                    playerlist[player.name][0] += player.net()
+                    playerlist[player.name][0] += player.net()/table.bb
                     if hand.has_known_hands():
                         playerlist[player.name][1] += 1
                 else:
-                    playerlist[player.name] = [player.net(), 0]
+                    playerlist[player.name] = [player.net()/table.bb, 0]
                     
-    return  sorted(playerlist.items(), key=lambda value: value[1][0], reverse=True)[0:10]
+    list =  sorted(playerlist.items(), key=lambda value: value[1][0], reverse=True)
+    return filter(lambda x: x[1][0] > netthresh and x[1][1] > handsthresh , list)
 
 
-def find_top_players_ratio(tablelist, minhands, numreturn):
+def find_top_players_ratio(tablelist, netthresh, handsthresh):
     #[net, amount of hands]
     playerlist = {}
     for table in tablelist:
         for hand in table.hands:
             for player in hand.players:
                 if player.name in playerlist:
-                    playerlist[player.name][0] += player.net()
+                    playerlist[player.name][0] += player.net()/table.bb
                     if hand.has_known_hands():
                         playerlist[player.name][1] += 1
                 else:
-                    playerlist[player.name] = [player.net(), 0]
+                    playerlist[player.name] = [player.net()/table.bb, 0]
     # net/hands played
-    return  sorted(playerlist.items(), key=lambda value: safe_weighted_division(value[1][0], value[1][1], minhands), reverse=True)[0:numreturn]
+    list = sorted(playerlist.items(), key=lambda value: safe_weighted_division(value[1][0], value[1][1]), reverse=True)
+    return filter(lambda x: safe_weighted_division(x[1][0], x[1][1]) > netthresh and x[1][1] > handsthresh, list)
+    
+    
+def process(handlist, top_player_names):
+    for hand in handlist:
+        for action in hand.actions:
+            if action.player.name in top_player_names:
+                
+                
+    
 
-def safe_weighted_division(net, hands, minhands):
-    if hands <= minhands:
-        return 0
+def safe_weighted_division(net, hands):
     try:
         return net / hands
     except ZeroDivisionError:
         return 0
 
-            
-
+def get_good_hands(tablelist, playerlist):
+    hands = []
+    for table in tablelist:
+        for hand in table.hands:
+            for player in hand.players:
+                if player.name in playerlist:
+                    if hand.has_known_hands():
+                        hands.append(hand)
+    return hands      
+    
 
 if __name__ == "__main__":
-
     filename = './ABSdata/ABSdata_1.pkl'
     print "Opening", filename, "this may take a minute"
     pfile = open(filename, 'rb')
@@ -88,29 +109,20 @@ if __name__ == "__main__":
     
     
     print count_known_cards(tablelist)
-    top_players = find_top_players(tablelist)
+    top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
     # table, minhands to be considered, number of players to return
-    top_ratio_players = find_top_players_ratio(tablelist, 100, 10)
-    # --------- some printing to show the differences between top players, and top players based on ratio
-    print 'tp', top_players
-    print 'trp', top_ratio_players
-    print '---in common players---'
-    top_player_names = []
-    top_player_hand_count = 0
-    for i in top_players:
-        top_player_names.append(i[0])
-        top_player_hand_count += i[1][1]
-    count = 0
-    top_player_ratio_hand_count = 0
-    for player in top_ratio_players:
-        top_player_ratio_hand_count += player[1][1]
-        if player[0] in top_player_names:
-            count += 1
-            print player
-    print ''
-    print count, 'players in common'
-    print 'top player total hands:', top_player_hand_count
-    print 'top ratio based player total hands:', top_player_ratio_hand_count
+    top_ratio_players = find_top_players_ratio(tablelist, 0.75,  100) # first is ratio threshold, number of cards threshold
+    
+    top_names = [i[0] for i in top_players]
+    
+    # change player list to top_player_names, if we use output from top_players instead
+    good_hands = get_good_hands(tablelist, top_names)
+    print "number of hands we will use:", len(good_hands)
+    
+    process(good_hands, top_names)
+    
+    
+    
     
     
     
