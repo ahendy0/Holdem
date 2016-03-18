@@ -67,7 +67,19 @@ def process(handlist, top_player_names):
                                 n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
                                 n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
                                 n_bet = normalize_bet(bet, runningstack)
-                                gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, action.type)
+                                # helps to normalize it, if its greater then 4, not much of a difference
+                                if num_to_call > 4:
+                                    num_to_call = 4
+                                #process the decision
+                                decision = DecisionType.FOLD
+                                if action.type in [ActionType.BET, ActionType.RAISE]:
+                                    decision = normalize_raise(action.amount, runningstack)
+                                elif action.type == ActionType.CALL:
+                                    decision = DecisionType.CALL
+                                elif action.type == ActionType.CHECK:
+                                    decision = DecisionType.CHECK                                
+                                #instantiate gamestate and add to list    
+                                gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision)
                                 gamestates.append(gs)
                                 # we also need to consider the action taken by user, in gamestate? or different
                             elif action.type == ActionType.ANTE:
@@ -221,6 +233,56 @@ def normalize_bet(bet, stack):
     
 def roundup(x):
     return int(math.ceil(x / 10.0)) * 10
+    
+def normalize_raise(bet, stack):
+    ratio = bet/float(stack) *100
+    if ratio < 2.5:
+        return DecisionType.RAISE2_5
+    elif ratio < 5:
+        return DecisionType.RAISE5
+    elif ratio < 7.5:
+        return DecisionType.RAISE7_5
+    elif ratio < 10:
+        return DecisionType.RAISE10
+    elif ratio < 15:
+        return DecisionType.RAISE15
+    elif ratio < 20:
+        return DecisionType.RAISE20
+    elif ratio < 25:
+        return DecisionType.RAISE25
+    elif ratio < 30:
+        return DecisionType.RAISE30
+    elif ratio < 40:
+        return DecisionType.RAISE40
+    elif ratio < 50:
+        return DecisionType.RAISE50
+    elif ratio < 60:
+        return DecisionType.RAISE60
+    elif ratio < 80:
+        return DecisionType.RAISE80
+    elif ratio <= 100:
+        return DecisionType.RAISE100
+  
+   
+class DecisionType(Enum):
+    FOLD = 0
+    CALL = 1
+    CHECK = 2
+    RAISE2_5 = 3
+    RAISE5 = 4
+    RAISE7_5 = 5
+    RAISE10 = 6
+    RAISE15 = 7
+    RAISE20 = 8
+    RAISE25 = 9
+    RAISE30 = 10
+    RAISE40 = 11
+    RAISE50 = 12
+    RAISE60 = 13
+    RAISE80 = 14
+    RAISE100 = 15
+    
+        
 
 if __name__ == "__main__":
     filename = './ABSdata/ABSdata_1.pkl'
