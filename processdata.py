@@ -2,6 +2,7 @@ from deuces import Card, Evaluator
 from datastruct import *
 import cPickle
 import enum
+import math
 
 
 
@@ -21,9 +22,6 @@ class GameState:
     def __str__(self):
         return "stack size: " + str(self.stacksize) + "\nnum called: " + str(self.num_called) + "\nnum to call: " + str(self.num_to_call) + "\nbet: " + str(self.bet) + "\nhand eval: " + str(self.hand_eval) + "\ncard info: " + str(self.card_info) + "\npotsize: " + str(self.potsize) + "\nDECISION: " + str(self.decision)
      
-
-def stack_size(bb, stacksize): 
-    buyin = 0
     
     
 def process(handlist, top_player_names):
@@ -39,46 +37,76 @@ def process(handlist, top_player_names):
                     folded = 0
                     num_to_call = len(hand.players) - 1
                     bet = 0
-                    potsize = 0                
+                    potsize = 0   
+                    commited = 0             
                     for action in hand.actions:
-                        #TODO GET RID OF TRY
-                        try:    
-                            potsize += action.amount
-                            #STATE
-                            if action.info != infostate:
-                                bet = 0
-                                num_called = 0
-                                num_to_call = len(hand.players) - 1 - folded
-                                infostate = action.info 
-                                name = ''
-                                if action.player != None:
-                                    name = action.player.name
-                            if player.name == name and player.hand != None:
+                        potsize += action.amount
+                        #STATE
+                        if action.info != infostate:
+                            commited = 0
+                            bet = 0
+                            num_called = 0
+                            num_to_call = len(hand.players) - 1 - folded
+                            infostate = action.info 
+                        name = ''
+                        if action.player != None:
+                            name = action.player.name
+                        if player.name == name and player.hand != None:
+                            if action.type in [ActionType.FOLD, ActionType.BET, ActionType.CALL, ActionType.CHECK, ActionType.ALLIN]:
                                 runningstack -= action.amount
+                                potsize += action.amount
+                                commited += action.amount
                                 # get hand eval from deuces
                                 cards = parse_cards(player.hand)
-                                if hand.board != None:
+                                board = hand.board
+                                if board != None:
                                     board = parse_cards(str(hand.board))
-                                hand_eval = evaluator.evaluate(board, cards)
+                                knowncards = known_cards(board, action.info)
+                                hand_eval = evaluator.evaluate(knowncards, cards)
                                 #create gamestate
-                                gs = GameState(runningstack, num_called, num_to_call, bet, hand_eval, potsize, action.info, action.type)
+                                n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
+                                n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
+                                n_bet = normalize_bet(bet, runningstack)
+                                gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, action.type)
                                 gamestates.append(gs)
                                 # we also need to consider the action taken by user, in gamestate? or different
-                            else: 
-                               if action.type in [ActionType.BET, ActionType.RAISE]:
-                                   bet = action.amount
-                               if action.type in [ActionType.CALL, ActionType.CHECK]:
-                                   num_called += 1
-                                   num_to_call -= 1
-                               if action.type == ActionType.FOLD:
-                                   folded += 1
-                        except Exception as e:
-                            print e
-                            print action
+                            elif action.type == ActionType.ANTE:
+                                runningstack -= action.amount
+                                potsize += action.amount
+                            elif action.type == ActionType.POST:
+                                runningstack -= action.amount
+                                potsize += action.amount
+                                commited += action.amount
+                                bet = 0
+                        else:
+                           if action.type == ActionType.ANTE:
+                               potsize += action.amount
+                           if action.type == ActionType.POST:
+                               potsize += action.amount
+                               bet = action.amount - commited
+                           if action.type in [ActionType.BET, ActionType.RAISE, ActionType.ALLIN]:
+                               bet = action.amount - commited
+                               num_called = 0
+                               num_to_call = len(hand.players) - 1 - folded
+                           if action.type in [ActionType.CALL, ActionType.CHECK]:
+                               num_called += 1
+                               num_to_call -= 1
+                           if action.type == ActionType.FOLD:
+                               folded += 1
+                    
+                          
         
     return gamestates
                 
-                
+def known_cards( board, info):
+    if info == ActionInfo.FLOP:
+        return board[0:3]
+    elif info == ActionInfo.TURN:
+        return board [0:4]
+    elif info == ActionInfo.RIVER:
+        return board
+    else:
+        return []
                      
         
 def hands_in_list(tablelist):
@@ -144,11 +172,14 @@ def get_good_hands(tablelist, playerlist):
     hands = []
     for table in tablelist:
         for hand in table.hands:
+            added = False
             for player in hand.players:
                 if player.name in playerlist:
-                    if hand.has_known_hands():
+                    if hand.has_known_hands() and not added:
+                        hand.showdown = table
+                        added = True
                         hands.append(hand)
-    return hands      
+    return hands            
     
 def parse_cards(cardstr):
     #have to replace 10 with T for deuces
@@ -160,7 +191,36 @@ def parse_cards(cardstr):
         hand.append(dcard)
     return hand
     
-
+def normalize_stackandpot(stack, buyin):
+    ratio = stack/float(buyin)
+    if ratio < 1/5.0:
+        return normalize.SMALL
+    if ratio < 1/2.0:
+        return normalize.SMALLMID
+    if ratio < 1:
+        return normalize.MID
+    if ratio < 3:
+        return normalize.MIDLARGE
+    if ratio < 5:
+        return normalize.LARGE
+        
+class normalize(Enum):
+    SMALL = 1
+    SMALLMID = 2
+    MID = 3
+    MIDLARGE = 4
+    LARGE = 5
+    
+    
+# returns percentage of bet to stack size, rounded up to nearest 10
+# ex: bet = 20, stack = 500, bet is 4% of stack, return 10
+def normalize_bet(bet, stack):
+    if stack == 0:
+        return 100
+    return roundup((bet/float(stack))*100)
+    
+def roundup(x):
+    return int(math.ceil(x / 10.0)) * 10
 
 if __name__ == "__main__":
     filename = './ABSdata/ABSdata_1.pkl'
@@ -186,8 +246,10 @@ if __name__ == "__main__":
  
     
     gamestates = process(good_hands, top_names)
-    print gamestates[0]
-    
+    for x in xrange(0, 20):
+        print gamestates[x]
+        print "------", x
+    print len(gamestates)
     
     
     
