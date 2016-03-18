@@ -4,7 +4,7 @@ from holdem.table import *
 from holdem.diler import *
 from holdem.player import *
 from holdem.different import *
-from holdem.naivebots import naive_min
+from holdem.naive_bots import naive_min
 from copy import deepcopy
 
 class TestGameMethods(unittest.TestCase):

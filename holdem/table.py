@@ -42,7 +42,8 @@ class Table(object):
         
     def remove_player(self, player):
         """Removes player from current table"""
-        pass
+
+        self.players.remove(player)
         
 
     def __available_sits__(self):

@@ -28,6 +28,10 @@ class Game(object):
             }
    
     def play_hand(self):
+
+        self.table.deck = Deck()    # Shuffle the deck before playing a hand
+        self.diler.deck = self.table.deck
+
         """Implementation of game flow"""
         self.table.on_game_started()
         # Sort players accroding to button position
@@ -37,8 +41,6 @@ class Game(object):
         # Give each player two cards
         for player in self.players:
             player.cards = self.diler.give_two_cards()
-
-        current_bank = {'value': 0, 'player_ids': None}
 
         folds = []
         allins = []
@@ -63,6 +65,7 @@ class Game(object):
                     self.table.display_move_start()
                     # Show player's move
                     move = player.make_move(self.game_info)
+                    print("Player " + str(player.plid) + " made decision " + str(move['decision'].dec_type) + " amount " + str(move['decision'].value))
                     self.table.display_move(move)
                 else:
                     continue
@@ -131,10 +134,18 @@ class Game(object):
                 self.__player_by_id__(plid).bankroll += amount
                 self.table.announce_win(plid, comb, amount)
         # want to return the bank rolls for each player
-        bankrolls = []
+        bankrolls = {}
         for player in self.players:
-            x = {'plid': player.plid, 'bankroll': player.bankroll}
-            bankrolls.append(x)
+            bankrolls[player.plid] = player.bankroll
+
+        for player in self.players: # If a player loses all their money, they are removed from the table
+            if bankrolls[player.plid] == 0:
+                self.table.remove_player(player)
+                # self.players.remove(player) #  <-- Is this necessary?
+                self.game_info['bankrolls'].pop(player.plid)
+                bankrolls.pop(player.plid)
+
+
         return bankrolls
 
     def __player_by_id__(self, plid):

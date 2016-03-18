@@ -73,6 +73,7 @@ class PlayerAtTable(object):
         #### print"Minimal allowed bet is: %r" % min_bet
         #### print"Maximum allowed bet is: %r" % self.bankroll
         # Last not FOLD and not ALLIN decision type
+        last_dec_type = None
         if last_move != None:
             last_dec_type = last_move['decision'].dec_type
         while True:
