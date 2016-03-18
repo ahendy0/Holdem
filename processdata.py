@@ -4,10 +4,14 @@ import cPickle
 import enum
 import math
 
+from sklearn.naive_bayes import GaussianNB, MultinomialNB
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import datasets
+
 
 
 class GameState:
-    def __init__(self,stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision):
+    def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision):
         self.stacksize = stacksize  #stacksize relative to others in the hand. on some scale 1-5? 1-10? spread of total money on table?
         self.num_called = num_called #number of players already called the bet to you
         self.num_to_call = num_to_call #number of players to call the bet after you. num_called + num_to_call + 1 should equal the amount of players in hand
@@ -72,6 +76,8 @@ def process(handlist, top_player_names):
                                     num_to_call = 4
                                 #process the decision
                                 decision = DecisionType.FOLD
+                                # TODO: possible remove this
+                                runningstack = player.origstack
                                 if action.type in [ActionType.BET, ActionType.RAISE]:
                                     decision = normalize_raise(action.amount, runningstack)
                                 elif action.type == ActionType.CALL:
@@ -213,7 +219,7 @@ def normalize_stackandpot(stack, buyin):
         return normalize.MID
     if ratio < 3:
         return normalize.MIDLARGE
-    if ratio < 5:
+    else:
         return normalize.LARGE
         
 class normalize(Enum):
@@ -227,15 +233,20 @@ class normalize(Enum):
 # returns percentage of bet to stack size, rounded up to nearest 10
 # ex: bet = 20, stack = 500, bet is 4% of stack, return 10
 def normalize_bet(bet, stack):
+    # TODO: possibly remove <
+    if bet <= 0:
+        return 0
     if stack == 0:
         return 100
+    if roundup((bet/float(stack))*100) < 0:
+        pass
     return roundup((bet/float(stack))*100)
     
 def roundup(x):
     return int(math.ceil(x / 10.0)) * 10
     
 def normalize_raise(bet, stack):
-    ratio = bet/float(stack) *100
+    ratio = bet / float(stack) *100
     if ratio < 2.5:
         return DecisionType.RAISE2_5
     elif ratio < 5:
@@ -260,8 +271,9 @@ def normalize_raise(bet, stack):
         return DecisionType.RAISE60
     elif ratio < 80:
         return DecisionType.RAISE80
-    elif ratio <= 100:
+    else:
         return DecisionType.RAISE100
+
   
    
 class DecisionType(Enum):
@@ -281,39 +293,104 @@ class DecisionType(Enum):
     RAISE60 = 13
     RAISE80 = 14
     RAISE100 = 15
+
+
+def process_gamestates(gamestates):
+    x = []
+    y = []
+    print len(gamestates)
+    for gs in gamestates:
+        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        x.append(temp)
+        y.append(gs.decision.value)
+    print "lens x, y:", len(x), len(y)
+    return x, y
     
         
 
 if __name__ == "__main__":
-    filename = './ABSdata/ABSdata_1.pkl'
-    print "Opening", filename, "this may take a minute"
-    pfile = open(filename, 'rb')
-    tablelist = cPickle.load(pfile)
-    
-    """find the number of hands in tablelist"""
-    # print "There is", hands_in_list(tablelist), "hands in this file."
-    
-    
-    print count_known_cards(tablelist)
-    top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
-    # table, minhands to be considered, number of players to return
-    top_ratio_players = find_top_players_ratio(tablelist, 0.75,  100) # first is ratio threshold, number of cards threshold
-    
-    top_names = [i[0] for i in top_players]
-    
-    # change player list to top_player_names, if we use output from top_players instead
-    good_hands = get_good_hands(tablelist, top_names)
-    print "number of hands we will use:", len(good_hands)
-    
- 
-    
-    gamestates = process(good_hands, top_names)
-    for x in xrange(0, 20):
-        print gamestates[x]
-        print "------", x
-    print len(gamestates)
-    
-    
+    parseFile = False
+    if parseFile:
+        filename = './ABSdata/ABSdata_1.pkl'
+        print "Opening", filename, "this may take a minute"
+        pfile = open(filename, 'rb')
+        tablelist = cPickle.load(pfile)
+
+        """find the number of hands in tablelist"""
+        # print "There is", hands_in_list(tablelist), "hands in this file."
+
+
+        print count_known_cards(tablelist)
+        top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
+        # table, minhands to be considered, number of players to return
+        top_ratio_players = find_top_players_ratio(tablelist, 0.75,  100) # first is ratio threshold, number of cards threshold
+
+        top_names = [i[0] for i in top_players]
+
+        # change player list to top_player_names, if we use output from top_players instead
+        good_hands = get_good_hands(tablelist, top_names)
+        print "number of hands we will use:", len(good_hands)
+
+
+
+        gamestates = process(good_hands, top_names)
+        for x in xrange(0, 20):
+            print gamestates[x]
+            print "------", x
+        print len(gamestates)
+
+        output = open('gamestates.pkl', 'wb')
+        cPickle.dump(gamestates, output)
+        output.close()
+
+    pfile = open('gamestates.pkl', 'rb')
+    gamestates = cPickle.load(pfile)
+
+
+    x, y = process_gamestates(gamestates)
+
+    # for i in x:
+    #     for j in i:
+    #         if j < 0:
+    #             print "neg val", j
+    #             print i
+    #
+    # for i in x_bet:
+    #     for j in i:
+    #         if j < 0:
+    #             print "neg val_bet", j
+
+    # expected array ordering: [gs.stacksize, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info, gs.potsize]
+    test_data = [
+        x[0],
+        [normalize.MIDLARGE.value, 2, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MID.value, 2, 3, 0, 300, ActionInfo.PREFLOP.value, normalize.MID.value],
+        [normalize.MIDLARGE.value, 2, 0, 30, 3468, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MIDLARGE.value, 2, 2, 20, 4000, ActionInfo.TURN.value, normalize.MIDLARGE.value],
+        [normalize.MID.value, 2, 3,  10, 300, ActionInfo.PREFLOP.value, normalize.MID.value],
+        [normalize.MIDLARGE.value, 2, 3, 10, 100, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MIDLARGE.value, 2, 0, 40, 30, ActionInfo.RIVER.value, normalize.MIDLARGE.value],
+        [normalize.MID.value, 2, 3, 60, 20, ActionInfo.PREFLOP.value, normalize.MID.value]
+    ]
+    # for removing attributes, less attributes could help classification
+    # for temp in test_data:
+    #     del temp[1]
+    #     del temp[2]
+    # for temp in x:
+    #     del temp[1]
+    #     del temp[2]
+
+    clf = MultinomialNB()
+    clf = clf.fit(x, y)
+    clf2_RFC = RandomForestClassifier(max_depth=len(test_data[0]), n_estimators=len(test_data[0]), max_features=len(test_data[0]))
+    clf2_RFC = clf2_RFC.fit(x, y)
+    print "class count:  ", clf.class_count_
+
+    print "NB", clf.predict(test_data)
+    print "forest", clf2_RFC.predict(test_data)
+
+
+
     
     
     
