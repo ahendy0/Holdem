@@ -7,12 +7,13 @@ from random import randint
 
 from sklearn.naive_bayes import GaussianNB, MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import datasets
+from sklearn import svm
+from sklearn.linear_model import Ridge
 
 
 
 class GameState:
-    def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision):
+    def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision, amount):
         self.stacksize = stacksize  #stacksize relative to others in the hand. on some scale 1-5? 1-10? spread of total money on table?
         self.num_called = num_called #number of players already called the bet to you
         self.num_to_call = num_to_call #number of players to call the bet after you. num_called + num_to_call + 1 should equal the amount of players in hand
@@ -21,6 +22,7 @@ class GameState:
         self.card_info = card_info #the state of the cards. prob follow same format as datastruct. Predeal should be ignored  PREDEAL = 0 PREFLOP = 1 FLOP = 2 TURN = 3 RIVER = 4 
         self.potsize = potsize  #the size of the current pot. relative to the table? relative to your stacksize?
         self.decision = decision # the y value basically, the decision they made based on all of this info
+        self.amount = amount # on a bet, this will include how much they bet. as percent of stack. BETWEEN 0 - 1 (not inclusive, 1 would be all in, 0 would be check)
         
         self.debug = None
         
@@ -124,7 +126,7 @@ def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action
     elif action.type == ActionType.CHECK:
         decision = DecisionType.CHECK
     #instantiate gamestate and add to list
-    gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision)
+    gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision, normalize_bet(action.amount, runningstack))
     return gs
                 
 def known_cards( board, info):
@@ -246,9 +248,7 @@ class normalize(Enum):
 def normalize_bet(bet, stack):
     if stack == 0:
         return 100
-    if roundup((bet/float(stack))*100) < 0:
-        pass
-    return roundup((bet/float(stack))*100)
+    return bet/float(stack)
     
 def roundup(x):
     return int(math.ceil(x / 10.0)) * 10
@@ -295,13 +295,18 @@ class DecisionType(Enum):
 def process_gamestates(gamestates):
     x = []
     y = []
+    x_raise = []
+    y_raise = []
     print len(gamestates)
     for gs in gamestates:
         temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
         x.append(temp)
         y.append(gs.decision.value)
+        if gs.amount > 0:
+            x_raise.append(temp)
+            y_raise.append(gs.amount)
     print "lens x, y:", len(x), len(y)
-    return x, y
+    return x, y, x_raise, y_raise
     
         
 
@@ -346,19 +351,21 @@ if __name__ == "__main__":
               print gamestate
 
 
-    x, y = process_gamestates(gamestates)
+    x, y, x_raise, y_raise = process_gamestates(gamestates)
+
+    print "length of raise: ", len(x_raise)
 
     # printrands = True
     printrands = False
     if printrands:
         rands = []
         for i in range(10):
-            rands.append(randint(0, len(x)))
+            rands.append(randint(0, len(x_raise)))
         print "10 random x & y values"
         for i in rands:
             print "--- x and y at " + str(i) + "---"
-            print "x:", x[i]
-            print "y:", y[i]
+            print "x:", x_raise[i]
+            print "y:", y_raise[i]
 
     checkOnBet = []
     for i in range(len(x)):
@@ -395,12 +402,22 @@ if __name__ == "__main__":
 
     clf = MultinomialNB()
     clf = clf.fit(x, y)
+
     clf2_RFC = RandomForestClassifier(max_depth=len(test_data[0]), n_estimators=len(test_data[0]), max_features=len(test_data[0]))
     clf2_RFC = clf2_RFC.fit(x, y)
     print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
     print "NB", clf.predict(test_data)
     print "forest", clf2_RFC.predict(test_data)
 
+    # TODO: printing same number .20298376 for both of them..?
+    # when running out bot, we can go.. if result = 3 (raise): use regression
+    test_data_raise = [
+        [normalize.SMALLMID.value, 0, 0, 30, 1000, ActionInfo.RIVER.value, normalize.MID.value], # bet: 30
+        [normalize.MIDLARGE.value, 0, 0, 20, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet: 30
+    ]
+    clf_raise = svm.SVR()
+    clf_raise.fit(x_raise, y_raise)
+    print "svm regression: ", clf_raise.predict(test_data_raise)
 
 
     
