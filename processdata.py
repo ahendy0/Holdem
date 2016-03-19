@@ -29,6 +29,7 @@ class GameState:
     
     
 def process(handlist, top_player_names):
+    #commented out folded, num_to_call, num_called for debuggin
     gamestates = []
     evaluator = Evaluator()
     for hand in handlist:
@@ -50,44 +51,21 @@ def process(handlist, top_player_names):
                             commited = 0
                             bet = 0
                             num_called = 0
-                            num_to_call = len(hand.players) - 1 - folded
+                            num_to_call
+                           # num_to_call = len(hand.players) - 1 - folded
                             infostate = action.info 
                         name = ''
                         if action.player != None:
                             name = action.player.name
                         if player.name == name and player.hand != None:
+                            #Hero
                             if action.type in [ActionType.FOLD, ActionType.BET, ActionType.CALL, ActionType.CHECK, ActionType.ALLIN]:
+                                gs = create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action, player, hand, evaluator)
+                                gamestates.append(gs)
+                                savestack = runningstack
                                 runningstack -= action.amount
                                 potsize += action.amount
                                 commited += action.amount
-                                # get hand eval from deuces
-                                cards = parse_cards(player.hand)
-                                board = hand.board
-                                if board != None:
-                                    board = parse_cards(str(hand.board))
-                                knowncards = known_cards(board, action.info)
-                                hand_eval = evaluator.evaluate(knowncards, cards)
-                                #create gamestate
-                                n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
-                                n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
-                                n_bet = normalize_bet(bet, runningstack)
-                                # helps to normalize it, if its greater then 4, not much of a difference
-                                if num_to_call > 4:
-                                    num_to_call = 4
-                                #process the decision
-                                decision = DecisionType.FOLD
-                                # TODO: possible remove this
-                                runningstack = player.origstack
-                                if action.type in [ActionType.BET, ActionType.RAISE]:
-                                    decision = normalize_raise(action.amount, runningstack)
-                                elif action.type == ActionType.CALL:
-                                    decision = DecisionType.CALL
-                                elif action.type == ActionType.CHECK:
-                                    decision = DecisionType.CHECK                                
-                                #instantiate gamestate and add to list    
-                                gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision)
-                                gamestates.append(gs)
-                                # we also need to consider the action taken by user, in gamestate? or different
                             elif action.type == ActionType.ANTE:
                                 runningstack -= action.amount
                                 potsize += action.amount
@@ -97,24 +75,54 @@ def process(handlist, top_player_names):
                                 commited += action.amount
                                 bet = 0
                         else:
-                           if action.type == ActionType.ANTE:
-                               potsize += action.amount
+                            #Enemy
                            if action.type == ActionType.POST:
-                               potsize += action.amount
-                               bet = action.amount - commited
+                                bet = action.amount - commited
                            if action.type in [ActionType.BET, ActionType.RAISE, ActionType.ALLIN]:
-                               bet = action.amount - commited
-                               num_called = 0
-                               num_to_call = len(hand.players) - 1 - folded
+                                lastbet = bet
+                                #Dealing with allins bet is still the same
+                                if(action.amount - commited >= 0):
+                                    bet = action.amount - commited
+                               #num_called = 0
+                              # num_to_call = len(hand.players) - 1 - folded
                            if action.type in [ActionType.CALL, ActionType.CHECK]:
-                               num_called += 1
-                               num_to_call -= 1
+                               pass
+                               #num_called += 1
+                               #num_to_call -= 1
                            if action.type == ActionType.FOLD:
-                               folded += 1
+                               pass
+                               #folded += 1
                     
                           
         
     return gamestates
+
+def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action, player, hand, evaluator):
+    # get hand eval from deuces
+    cards = parse_cards(player.hand)
+    board = hand.board
+    if board != None:
+        board = parse_cards(str(hand.board))
+    knowncards = known_cards(board, action.info)
+    hand_eval = evaluator.evaluate(knowncards, cards)
+    #create gamestate
+    n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
+    n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
+    n_bet = normalize_bet(bet, runningstack)
+    # helps to normalize it, if its greater then 4, not much of a difference
+    if num_to_call > 4:
+        num_to_call = 4
+    #process the decision
+    decision = DecisionType.FOLD
+    if action.type in [ActionType.BET, ActionType.RAISE]:
+        decision = normalize_raise(action.amount, runningstack)
+    elif action.type == ActionType.CALL:
+        decision = DecisionType.CALL
+    elif action.type == ActionType.CHECK:
+        decision = DecisionType.CHECK
+    #instantiate gamestate and add to list
+    gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision)
+    return gs
                 
 def known_cards( board, info):
     if info == ActionInfo.FLOP:
@@ -233,9 +241,6 @@ class normalize(Enum):
 # returns percentage of bet to stack size, rounded up to nearest 10
 # ex: bet = 20, stack = 500, bet is 4% of stack, return 10
 def normalize_bet(bet, stack):
-    # TODO: possibly remove <
-    if bet <= 0:
-        return 0
     if stack == 0:
         return 100
     if roundup((bet/float(stack))*100) < 0:
@@ -334,10 +339,6 @@ if __name__ == "__main__":
 
 
         gamestates = process(good_hands, top_names)
-        for x in xrange(0, 20):
-            print gamestates[x]
-            print "------", x
-        print len(gamestates)
 
         output = open('gamestates.pkl', 'wb')
         cPickle.dump(gamestates, output)
@@ -345,6 +346,11 @@ if __name__ == "__main__":
 
     pfile = open('gamestates.pkl', 'rb')
     gamestates = cPickle.load(pfile)
+
+
+    for gamestate in gamestates:
+        if(gamestate.bet !=0 and gamestate.decision == DecisionType.CHECK):
+              print gamestate
 
 
     x, y = process_gamestates(gamestates)
@@ -362,15 +368,8 @@ if __name__ == "__main__":
 
     # expected array ordering: [gs.stacksize, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info, gs.potsize]
     test_data = [
-        x[0],
-        [normalize.MIDLARGE.value, 2, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
-        [normalize.MID.value, 2, 3, 0, 300, ActionInfo.PREFLOP.value, normalize.MID.value],
-        [normalize.MIDLARGE.value, 2, 0, 30, 3468, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
-        [normalize.MIDLARGE.value, 2, 2, 20, 4000, ActionInfo.TURN.value, normalize.MIDLARGE.value],
-        [normalize.MID.value, 2, 3,  10, 300, ActionInfo.PREFLOP.value, normalize.MID.value],
-        [normalize.MIDLARGE.value, 2, 3, 10, 100, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
-        [normalize.MIDLARGE.value, 2, 0, 40, 30, ActionInfo.RIVER.value, normalize.MIDLARGE.value],
-        [normalize.MID.value, 2, 3, 60, 20, ActionInfo.PREFLOP.value, normalize.MID.value]
+        [normalize.MIDLARGE.value, 0, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MIDLARGE.value, 0, 0, 15, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
     ]
     # for removing attributes, less attributes could help classification
     # for temp in test_data:
@@ -384,9 +383,7 @@ if __name__ == "__main__":
     clf = clf.fit(x, y)
     clf2_RFC = RandomForestClassifier(max_depth=len(test_data[0]), n_estimators=len(test_data[0]), max_features=len(test_data[0]))
     clf2_RFC = clf2_RFC.fit(x, y)
-    print "class count:  ", clf.class_count_
-
-    print "NB", clf.predict(test_data)
+    print "NB", clf.predict_proba(test_data)
     print "forest", clf2_RFC.predict(test_data)
 
 
