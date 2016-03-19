@@ -3,6 +3,7 @@ from datastruct import *
 import cPickle
 import enum
 import math
+from random import randint
 
 from sklearn.naive_bayes import GaussianNB, MultinomialNB
 from sklearn.ensemble import RandomForestClassifier
@@ -115,7 +116,9 @@ def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action
     #process the decision
     decision = DecisionType.FOLD
     if action.type in [ActionType.BET, ActionType.RAISE]:
-        decision = normalize_raise(action.amount, runningstack)
+        decision = DecisionType.RAISE
+    elif action.type == ActionType.ALLIN:
+        decision = DecisionType.ALLIN
     elif action.type == ActionType.CALL:
         decision = DecisionType.CALL
     elif action.type == ActionType.CHECK:
@@ -285,19 +288,8 @@ class DecisionType(Enum):
     FOLD = 0
     CALL = 1
     CHECK = 2
-    RAISE2_5 = 3
-    RAISE5 = 4
-    RAISE7_5 = 5
-    RAISE10 = 6
-    RAISE15 = 7
-    RAISE20 = 8
-    RAISE25 = 9
-    RAISE30 = 10
-    RAISE40 = 11
-    RAISE50 = 12
-    RAISE60 = 13
-    RAISE80 = 14
-    RAISE100 = 15
+    RAISE = 3
+    ALLIN = 4
 
 
 def process_gamestates(gamestates):
@@ -314,6 +306,7 @@ def process_gamestates(gamestates):
         
 
 if __name__ == "__main__":
+    # parseFile = True
     parseFile = False
     if parseFile:
         filename = './ABSdata/ABSdata_1.pkl'
@@ -355,6 +348,24 @@ if __name__ == "__main__":
 
     x, y = process_gamestates(gamestates)
 
+    # printrands = True
+    printrands = False
+    if printrands:
+        rands = []
+        for i in range(10):
+            rands.append(randint(0, len(x)))
+        print "10 random x & y values"
+        for i in rands:
+            print "--- x and y at " + str(i) + "---"
+            print "x:", x[i]
+            print "y:", y[i]
+
+    checkOnBet = []
+    for i in range(len(x)):
+        if (y[i] == 2) and (x[i][3] > 0):
+            checkOnBet.append(i)
+    print "times player checked, when bet was not 0:", len(checkOnBet)
+
     # for i in x:
     #     for j in i:
     #         if j < 0:
@@ -368,8 +379,11 @@ if __name__ == "__main__":
 
     # expected array ordering: [gs.stacksize, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info, gs.potsize]
     test_data = [
-        [normalize.MIDLARGE.value, 0, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
-        [normalize.MIDLARGE.value, 0, 0, 15, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MIDLARGE.value, 0, 1, 0, 3500, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet:0
+        [normalize.LARGE.value, 0, 0, 0, 4200, ActionInfo.FLOP.value, normalize.SMALLMID.value], # bet:0
+        [normalize.MIDLARGE.value, 0, 4, 20, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet:20
+        [normalize.SMALL.value, 0, 2, 10, 2000, ActionInfo.TURN.value, normalize.SMALL.value], # bet:10
+        [normalize.SMALLMID.value, 0, 0, 30, 1000, ActionInfo.RIVER.value, normalize.MID.value], # bet: 30
     ]
     # for removing attributes, less attributes could help classification
     # for temp in test_data:
@@ -383,7 +397,8 @@ if __name__ == "__main__":
     clf = clf.fit(x, y)
     clf2_RFC = RandomForestClassifier(max_depth=len(test_data[0]), n_estimators=len(test_data[0]), max_features=len(test_data[0]))
     clf2_RFC = clf2_RFC.fit(x, y)
-    print "NB", clf.predict_proba(test_data)
+    print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
+    print "NB", clf.predict(test_data)
     print "forest", clf2_RFC.predict(test_data)
 
 
