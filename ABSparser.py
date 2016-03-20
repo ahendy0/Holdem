@@ -308,7 +308,7 @@ if __name__ == "__main__":
     file_ext = '.pkl' 
     file_cnt  = 0
     hand_cnt = 0
-    maxhands = 100000 #how many hands per file actual amount may be more 
+    maxhands = 20000 #how many hands per file actual amount may be more
     total_start_time = datetime.datetime.now()
     
     #create dir if not exists

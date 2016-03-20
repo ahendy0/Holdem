@@ -4,13 +4,11 @@ import cPickle
 import enum
 import math
 from random import randint
-
-from sklearn.naive_bayes import GaussianNB, MultinomialNB
+import os
+import numpy as np
+from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import svm
-from sklearn.linear_model import Ridge
-
-
+from sklearn import linear_model
 
 class GameState:
     def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision, amount):
@@ -55,7 +53,7 @@ def process(handlist, top_player_names):
                             bet = 0
                             num_called = 0
                             num_to_call
-                           # num_to_call = len(hand.players) - 1 - folded
+                            num_to_call = len(hand.players) - 1 - folded
                             infostate = action.info 
                         name = ''
                         if action.player != None:
@@ -65,7 +63,6 @@ def process(handlist, top_player_names):
                             if action.type in [ActionType.FOLD, ActionType.BET, ActionType.CALL, ActionType.CHECK, ActionType.ALLIN]:
                                 gs = create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action, player, hand, evaluator)
                                 gamestates.append(gs)
-                                savestack = runningstack
                                 runningstack -= action.amount
                                 potsize += action.amount
                                 commited += action.amount
@@ -82,19 +79,16 @@ def process(handlist, top_player_names):
                            if action.type == ActionType.POST:
                                 bet = action.amount - commited
                            if action.type in [ActionType.BET, ActionType.RAISE, ActionType.ALLIN]:
-                                lastbet = bet
                                 #Dealing with allins bet is still the same
                                 if(action.amount - commited >= 0):
                                     bet = action.amount - commited
-                               #num_called = 0
-                              # num_to_call = len(hand.players) - 1 - folded
+                                num_called = 0
+                                num_to_call = len(hand.players) - 1 - folded
                            if action.type in [ActionType.CALL, ActionType.CHECK]:
-                               pass
-                               #num_called += 1
-                               #num_to_call -= 1
+                               num_called += 1
+                               num_to_call -= 1
                            if action.type == ActionType.FOLD:
-                               pass
-                               #folded += 1
+                               folded += 1
                     
                           
         
@@ -112,9 +106,7 @@ def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action
     n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
     n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
     n_bet = normalize_bet(bet, runningstack)
-    # helps to normalize it, if its greater then 4, not much of a difference
-    if num_to_call > 4:
-        num_to_call = 4
+
     #process the decision
     decision = DecisionType.FOLD
     if action.type in [ActionType.BET, ActionType.RAISE]:
@@ -252,37 +244,7 @@ def normalize_bet(bet, stack):
     
 def roundup(x):
     return int(math.ceil(x / 10.0)) * 10
-    
-def normalize_raise(bet, stack):
-    ratio = bet / float(stack) *100
-    if ratio < 2.5:
-        return DecisionType.RAISE2_5
-    elif ratio < 5:
-        return DecisionType.RAISE5
-    elif ratio < 7.5:
-        return DecisionType.RAISE7_5
-    elif ratio < 10:
-        return DecisionType.RAISE10
-    elif ratio < 15:
-        return DecisionType.RAISE15
-    elif ratio < 20:
-        return DecisionType.RAISE20
-    elif ratio < 25:
-        return DecisionType.RAISE25
-    elif ratio < 30:
-        return DecisionType.RAISE30
-    elif ratio < 40:
-        return DecisionType.RAISE40
-    elif ratio < 50:
-        return DecisionType.RAISE50
-    elif ratio < 60:
-        return DecisionType.RAISE60
-    elif ratio < 80:
-        return DecisionType.RAISE80
-    else:
-        return DecisionType.RAISE100
 
-  
    
 class DecisionType(Enum):
     FOLD = 0
@@ -295,132 +257,197 @@ class DecisionType(Enum):
 def process_gamestates(gamestates):
     x = []
     y = []
-    x_raise = []
-    y_raise = []
     print len(gamestates)
     for gs in gamestates:
         temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
         x.append(temp)
         y.append(gs.decision.value)
-        if gs.amount > 0:
-            x_raise.append(temp)
-            y_raise.append(gs.amount)
-    print "lens x, y:", len(x), len(y)
-    return x, y, x_raise, y_raise
-    
-        
+    return x, y
+
+def process_raise_gamestates(gamestates):
+    raisegs = []
+    for gs in gamestates:
+        if gs.decision == DecisionType.RAISE:
+            raisegs.append(gs)
+    print "Raise Hands", len(raisegs)
+    x = []
+    y = []
+    for gs in raisegs:
+        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        x.append(temp)
+        y.append(gs.amount)
+    return x,y
+
+
+
 
 if __name__ == "__main__":
-    # parseFile = True
+    #parseFile = True
     parseFile = False
+    data_folder = './ABSdata/'
+    out_folder = 'gamestatedata/'
+    filename = 'gamestate_'
+    ext = '.pkl'
+       #create dir if not exists
+    if not os.path.exists(out_folder):
+        os.makedirs(out_folder)
+
     if parseFile:
-        filename = './ABSdata/ABSdata_1.pkl'
-        print "Opening", filename, "this may take a minute"
-        pfile = open(filename, 'rb')
-        tablelist = cPickle.load(pfile)
+        for x, file in enumerate( os.listdir(data_folder)):
+            print "Opening", data_folder + file, "this may take a minute"
+            pfile = open(data_folder +  file, 'rb')
+            tablelist = cPickle.load(pfile)
+            pfile.close()
 
-        """find the number of hands in tablelist"""
-        # print "There is", hands_in_list(tablelist), "hands in this file."
+            """find the number of hands in tablelist"""
+            # print "There is", hands_in_list(tablelist), "hands in this file."
 
 
-        print count_known_cards(tablelist)
-        top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
-        # table, minhands to be considered, number of players to return
-        top_ratio_players = find_top_players_ratio(tablelist, 0.75,  100) # first is ratio threshold, number of cards threshold
+            print count_known_cards(tablelist)
+            top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
+            # table, minhands to be considered, number of players to return
+            #top_ratio_players = find_top_players_ratio(tablelist, 0.75,  300) # first is ratio threshold, number of cards threshold
 
-        top_names = [i[0] for i in top_players]
-
-        # change player list to top_player_names, if we use output from top_players instead
-        good_hands = get_good_hands(tablelist, top_names)
-        print "number of hands we will use:", len(good_hands)
+            top_names = [i[0] for i in top_players]
 
 
 
-        gamestates = process(good_hands, top_names)
+            # change player list to top_player_names, if we use output from top_players instead
+            good_hands = get_good_hands(tablelist, top_names)
+            print "number of hands we will use:", len(good_hands)
 
-        output = open('gamestates.pkl', 'wb')
-        cPickle.dump(gamestates, output)
-        output.close()
-
-    pfile = open('gamestates.pkl', 'rb')
-    gamestates = cPickle.load(pfile)
+            #clear tablelist
+            tablelist = None
 
 
-    for gamestate in gamestates:
-        if(gamestate.bet !=0 and gamestate.decision == DecisionType.CHECK):
-              print gamestate
+            gamestates = process(good_hands, top_names)
+
+            top_names = None
+            good_hands = None
 
 
-    x, y, x_raise, y_raise = process_gamestates(gamestates)
+            output = open('./' + out_folder + filename + str(x) + ext, 'wb')
+            cPickle.dump(gamestates, output)
 
-    print "length of raise: ", len(x_raise)
+            #clear gamestates
+            gamestates = None
+            output.close()
 
-    # printrands = True
-    printrands = False
-    if printrands:
-        rands = []
-        for i in range(10):
-            rands.append(randint(0, len(x_raise)))
-        print "10 random x & y values"
-        for i in rands:
-            print "--- x and y at " + str(i) + "---"
-            print "x:", x_raise[i]
-            print "y:", y_raise[i]
 
-    checkOnBet = []
-    for i in range(len(x)):
-        if (y[i] == 2) and (x[i][3] > 0):
-            checkOnBet.append(i)
-    print "times player checked, when bet was not 0:", len(checkOnBet)
+    clf = BernoulliNB()
+    xtest = None
+    ytest = None
 
-    # for i in x:
-    #     for j in i:
-    #         if j < 0:
-    #             print "neg val", j
-    #             print i
-    #
-    # for i in x_bet:
-    #     for j in i:
-    #         if j < 0:
-    #             print "neg val_bet", j
+    classa = [0, 1, 2, 3, 4]
+    gamestates = []
+    for x, file in enumerate( os.listdir(out_folder)):
+        print "Opening",out_folder + file, "this may take a minute"
+        pfile = open(out_folder + file, 'rb')
+        gamestates += cPickle.load(pfile)
+        if len(gamestates) > 0:
+            pfile.close()
 
-    # expected array ordering: [gs.stacksize, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info, gs.potsize]
-    test_data = [
-        [normalize.MIDLARGE.value, 0, 1, 0, 3500, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet:0
-        [normalize.LARGE.value, 0, 0, 0, 4200, ActionInfo.FLOP.value, normalize.SMALLMID.value], # bet:0
-        [normalize.MIDLARGE.value, 0, 4, 20, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet:20
-        [normalize.SMALL.value, 0, 2, 10, 2000, ActionInfo.TURN.value, normalize.SMALL.value], # bet:10
-        [normalize.SMALLMID.value, 0, 0, 30, 1000, ActionInfo.RIVER.value, normalize.MID.value], # bet: 30
-    ]
-    # for removing attributes, less attributes could help classification
-    # for temp in test_data:
-    #     del temp[1]
-    #     del temp[2]
-    # for temp in x:
-    #     del temp[1]
-    #     del temp[2]
 
-    clf = MultinomialNB()
+
+
+
+    x, y, = process_gamestates(gamestates)
+    num = len(x) - 10000
+    xtest, ytest, =  x[num:], y[num:]
+    x, y = x[:num], y[:num]
+
     clf = clf.fit(x, y)
 
-    clf2_RFC = RandomForestClassifier(max_depth=len(test_data[0]), n_estimators=len(test_data[0]), max_features=len(test_data[0]))
+    clf2_RFC = RandomForestClassifier(max_depth=len(xtest[0]), n_estimators=len(xtest[0]), max_features=len(xtest[0]))
     clf2_RFC = clf2_RFC.fit(x, y)
+
+
+    #RAISE REGRESSION
+    xr, yr = process_raise_gamestates(gamestates)
+    num = len(xr) - 1000
+    xrt, yrt = xr[num:], yr[num:]
+    xr, yr = xr[:num], yr[:num]
+
+    regr = linear_model.LinearRegression()
+
+    # Train the model using the training sets
+    regr.fit(xr, yr)
+    # The mean square error
+    print("Residual sum of squares: %.2f"
+          % np.mean((regr.predict(xrt) - yrt) ** 2))
+    # Explained variance score: 1 is perfect prediction
+    print('Variance score: %.2f' % regr.score(xrt, yrt))
+
+
+    #count regression error
+    err2 = 0
+    err5 = 0
+    for i in xrange(len(xrt)):
+        if abs(regr.predict([xrt[i]])[0] -  yrt[i]) > 0.02:
+            err2 += 1
+        if abs(regr.predict([xrt[i]])[0] -  yrt[i]) > 0.05:
+            err5 += 1
+
+    print "Reg Error2", err2 , "out of", len(xrt), err2/float(len(xrt))
+    print "Reg Error5", err5 , "out of", len(xrt), err5/float(len(xrt))
+
+
+
+    print "Total Hands", sum
     print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
-    print "NB", clf.predict(test_data)
-    print "forest", clf2_RFC.predict(test_data)
+    print "NB", clf.score(xtest,ytest)
+    print "RF", clf2_RFC.score(xtest,ytest)
 
-    # TODO: printing same number .20298376 for both of them..?
-    # when running out bot, we can go.. if result = 3 (raise): use regression
-    test_data_raise = [
-        [normalize.SMALLMID.value, 0, 0, 30, 1000, ActionInfo.RIVER.value, normalize.MID.value], # bet: 30
-        [normalize.MIDLARGE.value, 0, 0, 20, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value], # bet: 30
+    #More tests
+    test_data = [
+        [normalize.MIDLARGE.value, 0, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+        [normalize.MIDLARGE.value, 0, 0, 15, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
     ]
-    clf_raise = svm.SVR()
-    clf_raise.fit(x_raise, y_raise)
-    print "svm regression: ", clf_raise.predict(test_data_raise)
+
+    for test in test_data:
+        i = clf2_RFC.predict([test])
+        print DecisionType(i)
 
 
-    
-    
-    
+
+
+
+    """
+    fold = 0
+    for x in xrange(len(xtest)):
+        decision = clf.predict([xtest[x]])[0]
+        if decision == DecisionType.FOLD.value:
+            fold+= 1
+    print "Num folds", fold
+    """
+
+
+
+
+
+    """
+    checkerr = 0
+    for x in xrange(len(xtest)):
+        decision = clf.predict([xtest[x]])[0]
+        if decision == DecisionType.CHECK.value:
+            if xtest[x][3] != 0.0:
+                checkerr += 1
+    print checkerr
+    """
+
+
+
+
+    """
+    allinerr = 0
+    for x in xrange(len(xtest)):
+        decision = clf.predict([xtest[x]])[0]
+        if decision == DecisionType.ALLIN and ytest:
+    """
+
+
+
+
+
+
     
