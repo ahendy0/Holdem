@@ -1,0 +1,55 @@
+Dealer: End of betting round 2
+Dealer: Broadcast Event: <Event type=turn card=(9, 'c')>
+Dealer: Player is all in, skipping <CallBot player_id=2>
+Dealer: Broadcast Event: <Event type=adjust_credits amount=-20 player_id=1>
+Dealer: Broadcast Event: <Event type=action action=<Action type=raise amount=20> player_id=1>
+Dealer: End of betting round 3
+
+player should have have chance to raise against nobody
+
+
+
+1. rules
+	raise loop allowed?
+1.5 tyler bot thing
+2. time limits
+3. bots
+
+all deals announced each round so that bots do not have to keep track of state
+
+bot overlay
+	threads
+		time limits
+	credits
+	RaiseTwentyBot fixes
+	CallBot
+	AllInBot
+	better str to represent bot
+	
+receive_event instead of receive_message
+better foldbot.py
+wrapper classes for protocol buffer classes?
+
+fixed .card on event object, fixed error in protocol definition (unused event property) -> test
+
+hella documentation
+
+restrictedpython?
+
+hand evaluator that uses simple ranks rather than complex ones
+
+efficient hand evaluator
+
+simplify game logic and pot where possible
+
+make the poker framework a package and change imports to poker.<etc>
+	make a name that doesn't suck a dick
+	need a script/other shit to make configuring games easier
+	game stats - graphs?
+	log to file/better logging
+	statistical functions for all bot types
+	debugging: record/replay
+
+make all bots proto_bots? probably a good idea
+
+look at TODO: items
