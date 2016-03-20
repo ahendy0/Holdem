@@ -9,16 +9,18 @@ import numpy as np
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import linear_model
+from sklearn.preprocessing import PolynomialFeatures
 
 class GameState:
-    def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize, card_info, decision, amount):
+    def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize,raises, card_info, decision, amount):
         self.stacksize = stacksize  #stacksize relative to others in the hand. on some scale 1-5? 1-10? spread of total money on table?
         self.num_called = num_called #number of players already called the bet to you
         self.num_to_call = num_to_call #number of players to call the bet after you. num_called + num_to_call + 1 should equal the amount of players in hand
         self.bet = bet #this is the bet amount to you. the bet should be relative to your stacksize on some scale
         self.hand_eval = hand_eval #the evaluation of your hand by deuces
         self.card_info = card_info #the state of the cards. prob follow same format as datastruct. Predeal should be ignored  PREDEAL = 0 PREFLOP = 1 FLOP = 2 TURN = 3 RIVER = 4 
-        self.potsize = potsize  #the size of the current pot. relative to the table? relative to your stacksize?
+        self.potsize = potsize  #the size of the current pot. relative to the table? relative to your stacksize?\
+        self.raises = raises
         self.decision = decision # the y value basically, the decision they made based on all of this info
         self.amount = amount # on a bet, this will include how much they bet. as percent of stack. BETWEEN 0 - 1 (not inclusive, 1 would be all in, 0 would be check)
         
@@ -35,6 +37,7 @@ def process(handlist, top_player_names):
     evaluator = Evaluator()
     for hand in handlist:
         for player in hand.players:
+            raises = 0
             if player != None:     
                 if player.name in top_player_names:
                     infostate = ActionInfo.PREDEAL
@@ -61,7 +64,8 @@ def process(handlist, top_player_names):
                         if player.name == name and player.hand != None:
                             #Hero
                             if action.type in [ActionType.FOLD, ActionType.BET, ActionType.CALL, ActionType.CHECK, ActionType.ALLIN]:
-                                gs = create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action, player, hand, evaluator)
+
+                                gs = create_gamestate(runningstack, num_to_call, num_called, potsize, raises, bet, action, player, hand, evaluator)
                                 gamestates.append(gs)
                                 runningstack -= action.amount
                                 potsize += action.amount
@@ -79,6 +83,7 @@ def process(handlist, top_player_names):
                            if action.type == ActionType.POST:
                                 bet = action.amount - commited
                            if action.type in [ActionType.BET, ActionType.RAISE, ActionType.ALLIN]:
+                                raises += 1
                                 #Dealing with allins bet is still the same
                                 if(action.amount - commited >= 0):
                                     bet = action.amount - commited
@@ -94,7 +99,7 @@ def process(handlist, top_player_names):
         
     return gamestates
 
-def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action, player, hand, evaluator):
+def create_gamestate(runningstack, num_to_call, num_called, potsize, raises, bet, action, player, hand, evaluator):
     # get hand eval from deuces
     cards = parse_cards(player.hand)
     board = hand.board
@@ -118,7 +123,7 @@ def create_gamestate(runningstack, num_to_call, num_called, potsize, bet, action
     elif action.type == ActionType.CHECK:
         decision = DecisionType.CHECK
     #instantiate gamestate and add to list
-    gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, action.info, decision, normalize_bet(action.amount, runningstack))
+    gs = GameState(n_stacksize, num_called, num_to_call, n_bet, hand_eval, n_potsize, raises, action.info, decision, normalize_bet(action.amount, runningstack))
     return gs
                 
 def known_cards( board, info):
@@ -259,7 +264,7 @@ def process_gamestates(gamestates):
     y = []
     print len(gamestates)
     for gs in gamestates:
-        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
         x.append(temp)
         y.append(gs.decision.value)
     return x, y
@@ -273,7 +278,7 @@ def process_raise_gamestates(gamestates):
     x = []
     y = []
     for gs in raisegs:
-        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
         x.append(temp)
         y.append(gs.amount)
     return x,y
@@ -368,6 +373,13 @@ if __name__ == "__main__":
     xrt, yrt = xr[num:], yr[num:]
     xr, yr = xr[:num], yr[:num]
 
+    poly = PolynomialFeatures(degree=4)
+    xr = poly.fit_transform(xr)
+    xrt = poly.fit_transform(xrt)
+
+
+
+
     regr = linear_model.LinearRegression()
 
     # Train the model using the training sets
@@ -393,11 +405,27 @@ if __name__ == "__main__":
 
 
 
+
+    if not os.path.exists('./fits/'):
+        os.makedirs('./fits/')
+    pfile = open('./fits/clfNB.pkl', 'wb')
+    cPickle.dump(clf, pfile)
+    pfile = open('./fits/clfRFC.pkl', 'wb')
+    cPickle.dump(clf2_RFC, pfile)
+
+
+
+
     print "Total Hands", sum
     print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
     print "NB", clf.score(xtest,ytest)
     print "RF", clf2_RFC.score(xtest,ytest)
 
+
+
+
+
+    """
     #More tests
     test_data = [
         [normalize.MIDLARGE.value, 0, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
@@ -407,7 +435,7 @@ if __name__ == "__main__":
     for test in test_data:
         i = clf2_RFC.predict([test])
         print DecisionType(i)
-
+    """
 
 
 
