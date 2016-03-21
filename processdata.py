@@ -108,8 +108,8 @@ def create_gamestate(runningstack, num_to_call, num_called, potsize, raises, bet
     knowncards = known_cards(board, action.info)
     hand_eval = evaluator.evaluate(knowncards, cards)
     #create gamestate
-    n_stacksize = normalize_stackandpot(runningstack, hand.showdown.bb * 100)
-    n_potsize = normalize_stackandpot(potsize, hand.showdown.bb * 100)
+    n_stacksize =    normalize_bet(runningstack, hand.showdown.bb * 100)
+    n_potsize = normalize_bet(potsize, hand.showdown.bb * 100)
     n_bet = normalize_bet(bet, runningstack)
 
     #process the decision
@@ -207,7 +207,7 @@ def get_good_hands(tablelist, playerlist):
                         hand.showdown = table
                         added = True
                         hands.append(hand)
-    return hands            
+    return hands
     
 def parse_cards(cardstr):
     #have to replace 10 with T for deuces
@@ -218,28 +218,7 @@ def parse_cards(cardstr):
         dcard = Card.new(card)
         hand.append(dcard)
     return hand
-    
-def normalize_stackandpot(stack, buyin):
-    ratio = stack/float(buyin)
-    if ratio < 1/5.0:
-        return normalize.SMALL
-    if ratio < 1/2.0:
-        return normalize.SMALLMID
-    if ratio < 1:
-        return normalize.MID
-    if ratio < 3:
-        return normalize.MIDLARGE
-    else:
-        return normalize.LARGE
-        
-class normalize(Enum):
-    SMALL = 1
-    SMALLMID = 2
-    MID = 3
-    MIDLARGE = 4
-    LARGE = 5
-    
-    
+
 # returns percentage of bet to stack size, rounded up to nearest 10
 # ex: bet = 20, stack = 500, bet is 4% of stack, return 10
 def normalize_bet(bet, stack):
@@ -264,7 +243,7 @@ def process_gamestates(gamestates):
     y = []
     print len(gamestates)
     for gs in gamestates:
-        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        temp = [gs.stacksize, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize]
         x.append(temp)
         y.append(gs.decision.value)
     return x, y
@@ -278,7 +257,7 @@ def process_raise_gamestates(gamestates):
     x = []
     y = []
     for gs in raisegs:
-        temp = [gs.stacksize.value, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize.value]
+        temp = [gs.stacksize, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize]
         x.append(temp)
         y.append(gs.amount)
     return x,y
@@ -353,17 +332,27 @@ if __name__ == "__main__":
             pfile.close()
 
 
+    #calc gamestates
+    count = [0, 0, 0, 0, 0]
+    for gs in gamestates:
+        i = gs.decision.value
+        count[i]+= 1
+
+    count = [x/float(len(gamestates)) for x in count]
+    print count
+
 
 
 
     x, y, = process_gamestates(gamestates)
+    print x[0]
     num = len(x) - 10000
     xtest, ytest, =  x[num:], y[num:]
     x, y = x[:num], y[:num]
 
     clf = clf.fit(x, y)
 
-    clf2_RFC = RandomForestClassifier(max_depth=len(xtest[0]), n_estimators=len(xtest[0]), max_features=len(xtest[0]))
+    clf2_RFC = RandomForestClassifier(random_state=0, class_weight=({1:0.25, 2:0.56, 3:0.17, 4:0.02}))
     clf2_RFC = clf2_RFC.fit(x, y)
 
 
@@ -420,36 +409,77 @@ if __name__ == "__main__":
     print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
     print "NB", clf.score(xtest,ytest)
     print "RF", clf2_RFC.score(xtest,ytest)
-
-
-
-
-
     """
-    #More tests
-    test_data = [
-        [normalize.MIDLARGE.value, 0, 0, 0, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
-        [normalize.MIDLARGE.value, 0, 0, 15, 4000, ActionInfo.FLOP.value, normalize.MIDLARGE.value],
+    count = [0, 0, 0, 0, 0]
+    for x in xtest:
+        i = clf.predict([x])
+        count[i]+= 1
+
+    sum = sum(count)
+    count = [x/float(sum) for x in count]
+    print count
+    """
+    count = [0, 0, 0, 0, 0]
+    for x in xtest:
+        i = clf2_RFC.predict([x])
+        count[i] += 1
+
+    s = sum(count)
+    count = [x/float(s) for x in count]
+    print count
+
+
+    np.set_printoptions(suppress=True)
+    for test in xtest[:5]:
+        print "--------------------------"
+        print test
+        print clf2_RFC.predict([test])
+        i = clf2_RFC.predict_proba([test])
+        print [(x*100) for x in i]
+
+
+    #[gs.stacksize, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize]
+
+
+    tests = [
+        [2.45, 0, 4, 3, 0.5 , 7231, ActionInfo.RIVER.value,0.1],
+        [2.45, 0, 4, 3, 0.5 , 1334, ActionInfo.RIVER.value,0.1],
+        [2.45, 0, 4, 3, 0.5 , 4389, ActionInfo.RIVER.value,0.1],
+
+
+
+
+
     ]
 
+    print "TESTS "
+
+    np.set_printoptions(suppress=True)
+    for test in tests:
+        print "--------------------------"
+        print test
+        print clf2_RFC.predict([test])
+        i = clf2_RFC.predict_proba([test])
+        print [x for x in i]
+
+
+
+    """
     for test in test_data:
-        i = clf2_RFC.predict([test])
+        i = clf.predict([test])
         print DecisionType(i)
-    """
 
 
 
-
-    """
     fold = 0
     for x in xrange(len(xtest)):
         decision = clf.predict([xtest[x]])[0]
         if decision == DecisionType.FOLD.value:
             fold+= 1
     print "Num folds", fold
+
+
     """
-
-
 
 
 
