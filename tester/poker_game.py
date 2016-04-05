@@ -186,11 +186,12 @@ class Round(object):
                 self.game.adjust_credits(player, credits)
                 
     def run_turn(self, player):
-        try:
-            return player.turn()
-        except Exception, e:
-            self.game.send_event(player, Event('bad_bot', message='bot threw an exception: ' + str(e), action=None))
-            return Action('fold')
+         return player.turn()
+       # try:
+        #    return player.turn()
+       # except Exception, e:
+        #    self.game.send_event(player, Event('bad_bot', message='bot threw an exception: ' + str(e), action=None))
+         #   return Action('fold')
             
     def get_player(self, index):
         return self.players[index % len(self.players)]
