@@ -40,6 +40,7 @@ class PokerGame(object):
             self.players.append(bot_instance)
             self.id[bot_instance] = id
             self.credits[bot_instance] = initial_credits
+            bot_instance.credits_table = self.credits
         self.active_players = copy.copy(self.players)
         
     @property

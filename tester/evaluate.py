@@ -7,10 +7,8 @@ from naive_bots import *
 
 def main():
 
-
     seed = None
-    if len(sys.argv) > 1:
-        seed = int(sys.argv[1])
+
     bots = [FoldBot,RandomBet,MinBet,AllIn,RandomBot]
     game = PokerGame(bots=bots, seed=seed)
     start_time = time.time()
