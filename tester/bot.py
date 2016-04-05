@@ -1,5 +1,5 @@
 from messages import Action
-
+from processdata import ActionInfo
 class Bot(object):
     def __init__(self, id, credits, big_blind_amount, small_blind_amount, *args, **kwargs):
         self.id = id
@@ -16,6 +16,7 @@ class Bot(object):
         self.raisecount = 0
         self.num_to_call = self.active_player_count - 1
         self.num_called = 0
+        self.info = None
 
 
     def parse_events(self):
@@ -26,18 +27,25 @@ class Bot(object):
                 self.board = [] #reset board
                 self.raisecount = 0
                 self.hole = event.cards
+                self.info = ActionInfo.PREFLOP
             elif event.type == 'flop':
                 self.board += event.cards
-            elif event.type in ['turn', 'river']:
+                self.info = ActionInfo.FLOP
+            elif event.type == 'turn':
                 self.board += [(event.card[0], event.card[1])] #make tuple
-            elif event.action.type == 'raise' and event.player_id != self.id:
-                self.raisecount += 1
-                self.num_to_call = self.active_player_count - 1
-                self.num_called = 1
-                num_to_call = self.active_player_count - 1
-            elif event.action.type in ['call', 'check']  and event.player_id != self.id:
-                self.num_to_call -= 1
-                self.num_called += 1
+                self.info = ActionInfo.TURN
+            elif event.type == 'river':
+                self.board += [(event.card[0], event.card[1])] #make tuple
+                self.info = ActionInfo.RIVER
+            elif event.type == 'action':
+                if event.action.type == 'raise' and event.player_id != self.id:
+                    self.raisecount += 1
+                    self.num_to_call = self.active_player_count - 1
+                    self.num_called = 1
+                    num_to_call = self.active_player_count - 1
+                elif event.action.type in ['call', 'check'] and event.player_id != self.id:
+                    self.num_to_call -= 1
+                    self.num_called += 1
 
 
         

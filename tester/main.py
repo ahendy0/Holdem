@@ -6,16 +6,13 @@ import sys
 from poker_game import PokerGame
 
 def main():
-   from example_bots.example_bot import FoldBot, TestBot
-   from example_bots.raise_twenty_bot import RaiseTwentyBot
-   from example_bots.protobot.cpp.foldbot_cpp import FoldBotCpp
-   from example_bots.protobot.java.foldbot_java import FoldBotJava
-   # uncomment this line to run the CPP foldbot
-   #bots = [ExampleBot, FoldBotCpp]
-   seed = None
+   from bots import FoldBot, RaiseTwentyBot, RFT
+
+   ##bots = [ExampleBot, FoldBotCpp]
+   seed = 999
    if len(sys.argv) > 1:
        seed = int(sys.argv[1])
-   bots = [FoldBot, RaiseTwentyBot, TestBot]
+   bots = [FoldBot, RaiseTwentyBot, RFT]
    game = PokerGame(bots=bots, seed=seed)
    start_time = time.time()
    outcome = game.run()
