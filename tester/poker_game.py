@@ -49,7 +49,8 @@ class PokerGame(object):
 
     def run(self):
         assert(len(self.active_players) > 0)
-        
+
+        rounds = []
         round_num = 1
         # button is random and goes to the next player (higher index) each round,
         # looping around at the end
@@ -69,7 +70,7 @@ class PokerGame(object):
             self.broadcast_event(Event('new_round'))
             self.output("Round: %d" % round_num)
             round = Round(self, button)
-            round.run()
+            rounds.append(round.run())
             self.output("End of Round State:")
             self.print_state()
             self.broadcast_event(Event('end_of_round'))
@@ -83,7 +84,7 @@ class PokerGame(object):
         self.output("Game Over")
         winner = self.active_players[0]
         self.output("Game Winner: %s with credits %d" % (winner, self.credits[winner]))
-        return (winner, self.credits[winner])
+        return (winner, self.credits[winner],rounds)
             
     def print_state(self):
         for player in self.active_players:
@@ -179,11 +180,13 @@ class Round(object):
             # TODO: win should indicate amount won, (gained over previous round)
             self.game.broadcast_event(Event('win', player_id=self.game.id[player], rank=0, amount=credits))
             self.game.adjust_credits(player, credits)
+            return tuple((player.id, creds) for player, creds in self.game.credits.items())
         else:
             ranking = self.determine_ranking(community_cards, hole_cards)
             for rank, (player, credits) in enumerate(reversed(sorted(self.pot.split(ranking)))):
                 self.game.broadcast_event(Event('win', player_id=self.game.id[player], rank=rank, amount=credits))
                 self.game.adjust_credits(player, credits)
+                return tuple((player.id, creds) for player, creds in self.game.credits.items())
                 
     def run_turn(self, player):
          return player.turn()
