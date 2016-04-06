@@ -1,5 +1,5 @@
 from bot import Bot
-from processdata import normalize_bet, DecisionType, handstrength
+from processdata import normalize_bet, DecisionType, ActionInfo, handstrength
 from deuces import Evaluator, Card
 import numpy as np
 import cPickle
@@ -67,41 +67,53 @@ class RFT(Bot):
 
 
     def make_decision(self, gs):
+        hs = gs[5]
+        bet = gs[4]
         print "HS", gs[5]
         if gs[5] < 0.3 and gs[4] > 0.001:
             return self.action('fold')
-        #PREDICT
         probs = self.clf.predict_proba([gs])
         dec = np.argmax(probs) + 1 #to account for fold
         std = np.std(probs, axis=1)[0]
-        print "PROBS", probs, dec, std,
 
-        #FOLD if bad std
-        #if std < 0.35 or std > 0.45:
-           # return self.action('fold')
+        if gs[6] == ActionInfo.PREFLOP.value:
+            return self.preflop(gs)
 
-        if dec == DecisionType.CHECK:
+        if dec == DecisionType.CHECK.value:
             return self.action('check')
-        if dec == DecisionType.CALL:
+        if dec == DecisionType.CALL.value:
             return self.action('call')
 
-        if dec == DecisionType.RAISE:
+        if dec == DecisionType.RAISE.value:
             amount = self.regr.predict([gs]) * self.big_blind_amount
             return self.action('raise', amount=amount)
 
-        if dec == DecisionType.ALLIN:
-            return self.action('raise', amount=self.credits)
+        if dec == DecisionType.ALLIN.value and hs > 0.85:
+            return self.action('raise', amount=self.get_credits_count())
+        else:
+            return self.action('fold')
 
 
-        return self.action(self.decision_to_string(dec), amount=0)
+        return self.action('check', amount=0)
 
 
 
 
     def preflop(self, gs):
-        return
-
-
+        hs = gs[5]
+        bet = gs[4]
+        if hs > 0.7:
+            if self.active_player_count < 2:
+                return self.action('raise', amount=self.get_credits_count()) # go allin
+            elif bet > 0.4:
+                return self.action('call')
+        elif hs > 0.4:
+            if self.active_player_count > 6:
+                return self.action('fold')
+            else:
+                return self.action('call')
+        else:
+            return self.action('fold')
 
 
 
