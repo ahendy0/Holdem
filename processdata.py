@@ -1,15 +1,21 @@
 from deuces import Card, Evaluator
 from datastruct import *
 import cPickle
-import enum
 import math
-from random import randint
 import os
 import numpy as np
-from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
+from sklearn import tree
+from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import linear_model
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.kernel_approximation import RBFSampler
+from random import shuffle
+from itertools import combinations
+import matplotlib.pyplot as plt
+from sklearn.externals.six import StringIO
+from IPython.display import Image, display
+import pydot
 
 class GameState:
     def __init__(self, stacksize, num_called, num_to_call, bet,hand_eval, potsize,raises, card_info, decision, amount):
@@ -23,7 +29,6 @@ class GameState:
         self.raises = raises
         self.decision = decision # the y value basically, the decision they made based on all of this info
         self.amount = amount # on a bet, this will include how much they bet. as percent of stack. BETWEEN 0 - 1 (not inclusive, 1 would be all in, 0 would be check)
-        
         self.debug = None
         
     def __str__(self):
@@ -94,19 +99,74 @@ def process(handlist, top_player_names):
                                num_to_call -= 1
                            if action.type == ActionType.FOLD:
                                folded += 1
-                    
-                          
-        
     return gamestates
+
+
+def generate_deck():
+    suits = ['s', 'c', 'd', 'h']
+    ranks = [str(x) for x in range(2,10)] + ['T', 'J', 'Q', 'K', 'A']
+    deck = []
+    for rank in ranks:
+        for suit in suits:
+            deck.append(rank + suit)
+    return deck
+
+def remove_cards(ourcards, board):
+    deck = generate_deck()
+    for card in ourcards + board:
+        deck.remove(card)
+    return deck
+
+def str_to_cards(cardsstr):
+    cards = []
+    for cardstr in cardsstr:
+        card = Card.new(cardstr)
+        cards.append(card)
+    return cards
+
+def handstrength(ourcards, board):
+    ahead = 0.0
+    tied = 0.0
+    behind = 0.0
+    evaluator = Evaluator()
+
+    deck = remove_cards(ourcards, board)
+
+    evalhand = str_to_cards(ourcards)
+    evalboard = str_to_cards(board)
+    ourrank = evaluator.evaluate(evalboard, evalhand)
+    opcombos = combinations(deck, 2)
+    for combo in opcombos:
+        holecards = str_to_cards(list(combo))
+        oprank = evaluator.evaluate(evalboard, holecards)
+        if ourrank < oprank:
+            ahead += 1
+        elif ourrank == oprank:
+            tied += 1
+        else:
+            behind += 1
+    handstrength = (ahead + tied/2)/(ahead+tied+behind)
+    return handstrength
+
 
 def create_gamestate(runningstack, num_to_call, num_called, potsize, raises, bet, action, player, hand, evaluator):
     # get hand eval from deuces
     cards = parse_cards(player.hand)
     board = hand.board
     if board != None:
-        board = parse_cards(str(hand.board))
+       board = parse_cards(str(hand.board))
     knowncards = known_cards(board, action.info)
-    hand_eval = evaluator.evaluate(knowncards, cards)
+    hole = parse_cards_list(player.hand)
+
+
+    #HANDSTRENGTH TEST
+    boardlist = hand.board
+    if board != None:
+        boardlist = parse_cards_list(str(hand.board))
+    boardlist = known_cards(boardlist, action.info)
+    hand_eval = handstrength(hole, boardlist)
+
+
     #create gamestate
     n_stacksize =    normalize_bet(runningstack, hand.showdown.bb * 100)
     n_potsize = normalize_bet(potsize, hand.showdown.bb * 100)
@@ -219,6 +279,12 @@ def parse_cards(cardstr):
         hand.append(dcard)
     return hand
 
+def parse_cards_list(cardstr):
+    #have to replace 10 with T for deuces
+    cardstr = cardstr.replace('10', 'T')
+    cardlist = cardstr.split(' ')
+    return cardlist
+
 # returns percentage of bet to stack size, rounded up to nearest 10
 # ex: bet = 20, stack = 500, bet is 4% of stack, return 10
 def normalize_bet(bet, stack):
@@ -239,6 +305,7 @@ class DecisionType(Enum):
 
 
 def process_gamestates(gamestates):
+    shuffle(gamestates)
     x = []
     y = []
     print len(gamestates)
@@ -264,10 +331,32 @@ def process_raise_gamestates(gamestates):
 
 
 
+def getMetrics(clf, xtest, ytest, x, y):
 
-if __name__ == "__main__":
-    #parseFile = True
-    parseFile = False
+    #calc gamestates
+    traincount = [0, 0, 0, 0, 0]
+    for d in y:
+        i = d
+        traincount[i]+= 1
+
+    print "Train Count", [x/float(sum(traincount)) for x in traincount]
+
+    ytrue = [0, 0, 0, 0, 0]
+    for d in ytest:
+        ytrue[d] += 1
+
+    print "Ytrue", [x/float(sum(ytrue)) for x in ytrue]
+
+
+    ypred = [0, 0, 0, 0, 0]
+    for x in xtest:
+        i = clf.predict([x])
+        ypred[i] += 1
+
+    print "Y predict", [x/float(sum(ypred)) for x in ypred]
+
+
+def load_gamestates(parse):
     data_folder = './ABSdata/'
     out_folder = 'gamestatedata/'
     filename = 'gamestate_'
@@ -276,7 +365,7 @@ if __name__ == "__main__":
     if not os.path.exists(out_folder):
         os.makedirs(out_folder)
 
-    if parseFile:
+    if parse:
         for x, file in enumerate( os.listdir(data_folder)):
             print "Opening", data_folder + file, "this may take a minute"
             pfile = open(data_folder +  file, 'rb')
@@ -286,15 +375,9 @@ if __name__ == "__main__":
             """find the number of hands in tablelist"""
             # print "There is", hands_in_list(tablelist), "hands in this file."
 
-
             print count_known_cards(tablelist)
             top_players = find_top_players(tablelist, 200, 100) # first is profit threshold , number of cards threshold
-            # table, minhands to be considered, number of players to return
-            #top_ratio_players = find_top_players_ratio(tablelist, 0.75,  300) # first is ratio threshold, number of cards threshold
-
             top_names = [i[0] for i in top_players]
-
-
 
             # change player list to top_player_names, if we use output from top_players instead
             good_hands = get_good_hands(tablelist, top_names)
@@ -318,11 +401,7 @@ if __name__ == "__main__":
             output.close()
 
 
-    clf = BernoulliNB()
-    xtest = None
-    ytest = None
 
-    classa = [0, 1, 2, 3, 4]
     gamestates = []
     for x, file in enumerate( os.listdir(out_folder)):
         print "Opening",out_folder + file, "this may take a minute"
@@ -330,31 +409,58 @@ if __name__ == "__main__":
         gamestates += cPickle.load(pfile)
         if len(gamestates) > 0:
             pfile.close()
+    return gamestates
 
+if __name__ == "__main__":
 
-    #calc gamestates
-    count = [0, 0, 0, 0, 0]
-    for gs in gamestates:
-        i = gs.decision.value
-        count[i]+= 1
-
-    count = [x/float(len(gamestates)) for x in count]
-    print count
-
-
-
+    gamestates = load_gamestates(parse=False)
 
     x, y, = process_gamestates(gamestates)
-    print x[0]
+
+    clf = GaussianNB()
+    xtest = None
+    ytest = None
+
+    classa = [0, 1, 2, 3, 4]
+
     num = len(x) - 10000
     xtest, ytest, =  x[num:], y[num:]
+
     x, y = x[:num], y[:num]
 
+    print x[:10], y[:10]
     clf = clf.fit(x, y)
 
     clf2_RFC = RandomForestClassifier(random_state=0, class_weight=({1:0.25, 2:0.56, 3:0.17, 4:0.02}))
     clf2_RFC = clf2_RFC.fit(x, y)
 
+    rbf_feature = RBFSampler(gamma=1, random_state=1)
+    X_features = rbf_feature.fit_transform(x)
+    X_test = rbf_feature.fit_transform(xtest)
+
+
+    clfK = linear_model.SGDClassifier()
+    clfK.fit(x, y)
+    print "SGD classifier", clfK.score(xtest, ytest)
+
+    #DECISION TREEE
+    clft = tree.DecisionTreeClassifier( max_depth= 7)
+    clft.fit(x, y)
+    print "Tree", clft.score(xtest, ytest)
+
+
+    #gen image
+    fname = ["stack size: ", "num called: " , "num to call: " , "raise",  "bet: " , "hand eval: " , "card info: " , "potsize: " ]
+    tname = ["call", "check", "raise", "fold"]
+
+    dot_data = StringIO()
+    tree.export_graphviz(clft, out_file=dot_data,
+                         feature_names=fname,
+                         class_names=tname,
+                         filled=True, rounded=True,
+                         special_characters=True)
+    graph = pydot.graph_from_dot_data(dot_data.getvalue())
+    graph.write_png("test.png")
 
     #RAISE REGRESSION
     xr, yr = process_raise_gamestates(gamestates)
@@ -393,7 +499,7 @@ if __name__ == "__main__":
     print "Reg Error5", err5 , "out of", len(xrt), err5/float(len(xrt))
 
 
-
+    print "REG SCORE" , regr.score(xrt, yrt)
 
     if not os.path.exists('./fits/'):
         os.makedirs('./fits/')
@@ -401,111 +507,77 @@ if __name__ == "__main__":
     cPickle.dump(clf, pfile)
     pfile = open('./fits/clfRFC.pkl', 'wb')
     cPickle.dump(clf2_RFC, pfile)
-
-
+    pfile = open('./fits/regr.pkl', 'wb')
+    cPickle.dump(regr, pfile)
+    pfile = open('./fits/tree.pkl', 'wb')
+    cPickle.dump(clft, pfile)
 
 
     print "Total Hands", sum
     print "------predictions-------\n0=fold, 1=call, 2=check, 3=raise, 4=allin"
     print "NB", clf.score(xtest,ytest)
     print "RF", clf2_RFC.score(xtest,ytest)
-    """
-    count = [0, 0, 0, 0, 0]
-    for x in xtest:
-        i = clf.predict([x])
-        count[i]+= 1
-
-    sum = sum(count)
-    count = [x/float(sum) for x in count]
-    print count
-    """
-    count = [0, 0, 0, 0, 0]
-    for x in xtest:
-        i = clf2_RFC.predict([x])
-        count[i] += 1
-
-    s = sum(count)
-    count = [x/float(s) for x in count]
-    print count
 
 
-    np.set_printoptions(suppress=True)
-    for test in xtest[:5]:
-        print "--------------------------"
-        print test
-        print clf2_RFC.predict([test])
-        i = clf2_RFC.predict_proba([test])
-        print [(x*100) for x in i]
+    print "RANDOM FOREST METRICS"
+    getMetrics(clf2_RFC, xtest, ytest, x, y)
+    print "NB METRICS"
+    getMetrics(clf, xtest, ytest, x, y)
 
-
-    #[gs.stacksize, gs.num_called, gs.num_to_call, gs.raises, gs.bet, gs.hand_eval, gs.card_info.value, gs.potsize]
-
-
-    tests = [
-        [2.45, 0, 4, 3, 0.5 , 7231, ActionInfo.RIVER.value,0.1],
-        [2.45, 0, 4, 3, 0.5 , 1334, ActionInfo.RIVER.value,0.1],
-        [2.45, 0, 4, 3, 0.5 , 4389, ActionInfo.RIVER.value,0.1],
+    #stacksize, num_called, num_to_call, bet,hand_eval, potsize,raises, card_info, decision, amount):
+    #some tests
+    shouldfold = [
+        [0.67, 0, 6, 0.9, 0.2, 0.1, 2, 0],
+                  ]
+    prob =  clf.predict_proba(shouldfold)
+    print   prob
+    print  np.std(prob, axis=1)
 
 
 
 
+    #PLOT HISTOGRAM OF HANDSTRENGTHS
+    hs = []
+    for gs in gamestates:
+        hs.append(gs.num_called)
 
-    ]
-
-    print "TESTS "
-
-    np.set_printoptions(suppress=True)
-    for test in tests:
-        print "--------------------------"
-        print test
-        print clf2_RFC.predict([test])
-        i = clf2_RFC.predict_proba([test])
-        print [x for x in i]
+    plt.hist(hs, bins=8)
+    plt.title("NumCalled")
+    plt.xlabel("Handstrength %")
+    plt.ylabel("Frequency")
+    plt.show()
 
 
+    #PLOT HISTOGRAM OF HANDSTRENGTHS
+    hs = []
+    for gs in gamestates:
+        hs.append(gs.num_to_call)
 
-    """
-    for test in test_data:
-        i = clf.predict([test])
-        print DecisionType(i)
-
-
-
-    fold = 0
-    for x in xrange(len(xtest)):
-        decision = clf.predict([xtest[x]])[0]
-        if decision == DecisionType.FOLD.value:
-            fold+= 1
-    print "Num folds", fold
-
-
-    """
-
-
-
-    """
-    checkerr = 0
-    for x in xrange(len(xtest)):
-        decision = clf.predict([xtest[x]])[0]
-        if decision == DecisionType.CHECK.value:
-            if xtest[x][3] != 0.0:
-                checkerr += 1
-    print checkerr
-    """
+    plt.hist(hs, bins=8)
+    plt.title("NumtoCall")
+    plt.xlabel("Num_to_call")
+    plt.ylabel("Frequency")
+    plt.show()
 
 
 
 
-    """
-    allinerr = 0
-    for x in xrange(len(xtest)):
-        decision = clf.predict([xtest[x]])[0]
-        if decision == DecisionType.ALLIN and ytest:
-    """
+    #PLOT HISTOGRAM OF HANDSTRENGTHS
+    hs = []
+    for gs in gamestates:
+        hs.append(gs.hand_eval)
 
+    plt.hist(hs, bins=20)
+    plt.title("HandStrength Frequency")
+    plt.xlabel("Handstrength %")
+    plt.ylabel("Frequency")
+    plt.show()
 
-
-
-
-
-    
+    #PLOT HISTOGRAM OF STD OF decision probs
+    probs = clf.predict_proba(x)
+    std = np.std(probs, axis=1)
+    plt.hist(std, bins=20)
+    plt.title("STD of Decision Probabilities")
+    plt.xlabel("STD")
+    plt.ylabel("Frequency")
+    plt.show()
