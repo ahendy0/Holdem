@@ -13,11 +13,12 @@ def evaluate():
 
     seed = 0
     results = []
-
+    bot_under_test = FoldBot #For example right now
     bots = [FoldBot,RandomBet,MinBet,AllIn,RandomBot]
-    for num_players in range(MAX_PLAYERS):
+
+    for num_players in range(2,MAX_PLAYERS):
         for combination in combinations_with_replacement(bots,num_players):
-            for permutation in permutations(combination,numplayers):
+            for permutation in permutations(combination,num_players):
                 for i in range(NUM_TESTS):
                     game = PokerGame(bots=permutation, seed=seed)
                     results.append(game.run())
@@ -27,7 +28,7 @@ def evaluate():
 if __name__ == "__main__":
     import sys
     try:
-        sys.exit(main())
+        sys.exit(evaluate())
     except Exception, e:
         print ""
         traceback.print_exc()
