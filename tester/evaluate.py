@@ -1,26 +1,34 @@
 import platform
 import time
 import traceback
+from itertools import permutations, combinations_with_replacement
 
 from poker_game import PokerGame
 from naive_bots import *
 
-def main():
+MAX_PLAYERS = 8
+NUM_TESTS = 100
 
-    seed = None
+def evaluate():
 
+    seed = 0
+    results = []
+    bot_under_test = FoldBot #For example right now
     bots = [FoldBot,RandomBet,MinBet,AllIn,RandomBot]
-    game = PokerGame(bots=bots, seed=seed)
-    start_time = time.time()
-    outcome = game.run()
-    end_time = time.time()
-    print "Result:", outcome
-    print "Time elapsed: %0.2f seconds" % (end_time - start_time)
+
+    for num_players in range(2,MAX_PLAYERS):
+        for combination in combinations_with_replacement(bots,num_players):
+            for permutation in permutations(combination,num_players):
+                for i in range(NUM_TESTS):
+                    game = PokerGame(bots=permutation, seed=seed)
+                    results.append(game.run())
+                    seed += 1
+
 
 if __name__ == "__main__":
     import sys
     try:
-        sys.exit(main())
+        sys.exit(evaluate())
     except Exception, e:
         print ""
         traceback.print_exc()
