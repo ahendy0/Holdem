@@ -9,10 +9,10 @@ def main():
    from bots import FoldBot, RaiseTwentyBot, RFT
 
    ##bots = [ExampleBot, FoldBotCpp]
-   seed = 999
+   seed = 1
    if len(sys.argv) > 1:
        seed = int(sys.argv[1])
-   bots = [FoldBot, RaiseTwentyBot, RFT]
+   bots = [RandomBot,RandomBot,RandomBot,RandomBot,RandomBot,  RFT]
    game = PokerGame(bots=bots, seed=seed)
    start_time = time.time()
    outcome = game.run()

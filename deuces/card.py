@@ -58,7 +58,6 @@ class Card ():
         
         http://www.suffecool.net/poker/evaluator.html
         """
-
         rank_char = string[0]
         suit_char = string[1]
         rank_int = Card.CHAR_RANK_TO_INT_RANK[rank_char]

@@ -76,8 +76,9 @@ class Pot(object):
         in order of decreasing rank (so the players with the best hands are first)
         """
         hand_ranks = [hand_rank for hand_rank, player in ranking]
-        for current_rank in reversed(sorted(set(hand_ranks))):
+        for current_rank in sorted(set(hand_ranks)):
             yield [player for hand_rank, player in ranking if hand_rank == current_rank]
+
             
     def split_group(self, pots, winners):
         """
@@ -110,6 +111,8 @@ class Pot(object):
                 extra = 0
             # remove the first player, he has got all the money he will get
             L = L[1:]
+
+
         return pots, winnings.items()
         
     def create_pots(self):
@@ -150,6 +153,7 @@ class Pot(object):
         for group in self.get_winner_groups(ranking):
             pots, winners = self.split_group(pots, group)
             for player, amount in winners:
+                print player, amount
                 if amount > 0:
                     amount_distributed += amount
                     yield (player, amount)

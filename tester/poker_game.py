@@ -3,10 +3,15 @@ import copy
 import logging
 import collections
 
+
 from cards import Deck, n_card_rank
 from messages import Event, Action
 from pot import Pot
+
+from deuces import Card, Evaluator
 from bot_wrapper import BotWrapper
+
+
 
 # TODO: correct handling of heads_up -> button selection etc
 # TODO: logging module
@@ -19,12 +24,13 @@ class WinByDefault(Exception):
         self.winner = winner
 
 class PokerGame(object):
-    def __init__(self, bots, initial_credits=10000, num_decks=1,
-            small_blind_amount=10, seed=None):
+    def __init__(self, bots, initial_credits=2000, num_decks=1,
+            small_blind_amount=1, seed=None):
         self.players = []
         self.credits = {}
         self.id = {}
         self.deck = Deck()
+        self.evaluator = Evaluator()
         # big blind amount is 2x small_blind_amount
         self.small_blind_amount = small_blind_amount
         
@@ -69,8 +75,8 @@ class PokerGame(object):
         while len(self.active_players) > 1:
             self.broadcast_event(Event('new_round'))
             self.output("Round: %d" % round_num)
-            round = Round(self, button)
-            rounds.append(round.run())
+            round = Round(self, button, self.evaluator)
+            round.run()
             self.output("End of Round State:")
             self.print_state()
             self.broadcast_event(Event('end_of_round'))
@@ -123,8 +129,9 @@ class PokerGame(object):
         print "Dealer: %s" % msg
         
 class Round(object):
-    def __init__(self, game, button):
+    def __init__(self, game, button, evaluator):
         self.game = game
+        self.ranks = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"]
         # make a copy of the deck for this round and shuffle it
         self.deck = copy.copy(game.deck)
         self.deck.shuffle()
@@ -133,6 +140,7 @@ class Round(object):
         self.button = button
         self.pot = Pot()
         self.all_in = []
+        self.evaluator = evaluator
         
     def run(self):
         self.game.broadcast_event(Event('button', player_id=self.game.id[self.button]))
@@ -183,10 +191,11 @@ class Round(object):
             return tuple((player.id, creds) for player, creds in self.game.credits.items())
         else:
             ranking = self.determine_ranking(community_cards, hole_cards)
-            for rank, (player, credits) in enumerate(reversed(sorted(self.pot.split(ranking)))):
+            print ranking
+            for rank, (player, credits) in enumerate((sorted(self.pot.split(ranking)))):
                 self.game.broadcast_event(Event('win', player_id=self.game.id[player], rank=rank, amount=credits))
                 self.game.adjust_credits(player, credits)
-                return tuple((player.id, creds) for player, creds in self.game.credits.items())
+            return tuple((player.id, creds) for player, creds in self.game.credits.items())
                 
     def run_turn(self, player):
          return player.turn()
@@ -331,8 +340,19 @@ class Round(object):
         # determine the best hand for each player
         hand_ranks = []
         for player in self.active_players:
+            print "CARDS", community_cards
+            board = self.parse_cards(community_cards)
+
+            hand = self.parse_cards(hole_cards[player])
             cards = community_cards + hole_cards[player]
-            hand_rank = n_card_rank(cards)
+            hand_rank = self.evaluator.evaluate(board,hand)
             self.game.output("Player: %s with %s using cards %s" % (player, hand_rank, cards))
             hand_ranks.append((hand_rank, player))
+
         return hand_ranks
+
+    def parse_cards(self, cards):
+        list = []
+        for tup in cards:
+            list.append(Card.new(self.ranks[tup[0]] + str(tup[1])))
+        return list

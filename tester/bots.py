@@ -19,10 +19,17 @@ class RaiseTwentyBot(Bot):
         self.event_queue = []
         return self.action('raise', amount=20)
 
+class Stats():
+    def __init__(self):
+        self.folds = 0
+        self.checks = 0
+        self.calls = 0
+        self.raises = 0
+        self.allins = 0
 
 class RFT(Bot):
     def __init__(self, id, credits, big_blind_amount, small_blind_amount, *args, **kwargs):
-        self.ranks =  ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"]
+        self.ranks = ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K", "A"]
         self.id = id
         self.initial_credits = credits
         self.credits = self.initial_credits
@@ -37,8 +44,9 @@ class RFT(Bot):
         self.raisecount = 0
         self.num_to_call = self.active_player_count - 1
         self.num_called = 0
+        self.stats = Stats()
         #open model
-        file = open('../fits/tree.pkl', 'rb')
+        file = open('../fits/clfRFC.pkl', 'rb')
         self.clf = cPickle.load(file)
         file.close()
         file = open('../fits/regr.pkl', 'rb')
@@ -56,9 +64,11 @@ class RFT(Bot):
         return self.make_decision(gs)
 
 
+
+
     def make_decision(self, gs):
         print "HS", gs[5]
-        if gs[5] < 0.5 and gs[4] > 0.001:
+        if gs[5] < 0.3 and gs[4] > 0.001:
             return self.action('fold')
         #PREDICT
         probs = self.clf.predict_proba([gs])
@@ -76,7 +86,7 @@ class RFT(Bot):
             return self.action('call')
 
         if dec == DecisionType.RAISE:
-            amount = self.regr.predict([gs])
+            amount = self.regr.predict([gs]) * self.big_blind_amount
             return self.action('raise', amount=amount)
 
         if dec == DecisionType.ALLIN:
@@ -87,6 +97,9 @@ class RFT(Bot):
 
 
 
+
+    def preflop(self, gs):
+        return
 
 
 

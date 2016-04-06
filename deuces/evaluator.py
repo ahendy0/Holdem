@@ -37,7 +37,7 @@ class Evaluator(object):
         
         
     def _two(self, cards):
-                    
+
 
         #returns a rank 7463 - 7631. Based on chens formula
         # if suited
