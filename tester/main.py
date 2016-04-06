@@ -9,7 +9,7 @@ def main():
    from bots import FoldBot, RaiseTwentyBot, RFT
 
    ##bots = [ExampleBot, FoldBotCpp]
-   seed = 999
+   seed = 952
    if len(sys.argv) > 1:
        seed = int(sys.argv[1])
    bots = [RandomBot,RandomBot,RandomBot,RandomBot,RandomBot,  RFT]

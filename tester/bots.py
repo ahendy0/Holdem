@@ -70,8 +70,13 @@ class RFT(Bot):
         hs = gs[5]
         bet = gs[4]
         print "HS", gs[5]
-        if gs[5] < 0.3 and gs[4] > 0.001:
+        if hs < 0.3 and gs[4] > 0.001:
             return self.action('fold')
+        if hs < 0.6 and bet > 0.5:
+            return self.action('fold')
+
+
+
         probs = self.clf.predict_proba([gs])
         dec = np.argmax(probs) + 1 #to account for fold
         std = np.std(probs, axis=1)[0]
@@ -108,8 +113,11 @@ class RFT(Bot):
             elif bet > 0.4:
                 return self.action('call')
         elif hs > 0.4:
-            if self.active_player_count > 6:
-                return self.action('fold')
+            if bet < 0.2:
+                if self.active_player_count > 6:
+                    return self.action('fold')
+                else:
+                    return self.action('call')
             else:
                 return self.action('call')
         else:
