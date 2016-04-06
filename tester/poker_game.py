@@ -192,10 +192,10 @@ class Round(object):
         else:
             ranking = self.determine_ranking(community_cards, hole_cards)
             print ranking
-            for rank, (player, credits) in enumerate(reversed(sorted(self.pot.split(ranking)))):
+            for rank, (player, credits) in enumerate((sorted(self.pot.split(ranking)))):
                 self.game.broadcast_event(Event('win', player_id=self.game.id[player], rank=rank, amount=credits))
                 self.game.adjust_credits(player, credits)
-                return tuple((player.id, creds) for player, creds in self.game.credits.items())
+            return tuple((player.id, creds) for player, creds in self.game.credits.items())
                 
     def run_turn(self, player):
          return player.turn()
