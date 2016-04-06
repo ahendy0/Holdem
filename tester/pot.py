@@ -76,7 +76,8 @@ class Pot(object):
         in order of decreasing rank (so the players with the best hands are first)
         """
         hand_ranks = [hand_rank for hand_rank, player in ranking]
-        for current_rank in reversed(sorted(set(hand_ranks))):
+        print "REVERSE SROTED", list(sorted(set(hand_ranks)))
+        for current_rank in sorted(set(hand_ranks)):
             yield [player for hand_rank, player in ranking if hand_rank == current_rank]
             
     def split_group(self, pots, winners):
