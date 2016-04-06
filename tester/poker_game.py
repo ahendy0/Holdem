@@ -76,7 +76,7 @@ class PokerGame(object):
             self.broadcast_event(Event('new_round'))
             self.output("Round: %d" % round_num)
             round = Round(self, button, self.evaluator)
-            round.run()
+            rounds.append(round.run())
             self.output("End of Round State:")
             self.print_state()
             self.broadcast_event(Event('end_of_round'))

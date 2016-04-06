@@ -14,7 +14,6 @@ from random import shuffle
 from itertools import combinations
 import matplotlib.pyplot as plt
 from sklearn.externals.six import StringIO
-from IPython.display import Image, display
 import pydot
 
 class GameState:
