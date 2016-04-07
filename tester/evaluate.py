@@ -73,8 +73,8 @@ def main():
     results = evaluate(AllIn)
     import matplotlib.pyplot as plt
 
-    print(results[0] + "\n\n")
-    print(results[1])
+    print(str(results[0]) + "\n\n")
+    print(str(results[1])
 
     for bot_count, bot_dict in results[2].iteritems():
 
