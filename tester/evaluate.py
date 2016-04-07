@@ -44,14 +44,18 @@ def evaluate(bot_under_test):
         winnings = dict(zip(testclasses, [0]*len(testclasses)))
         winnings_array = dict(zip(testclasses, [[]]*len(testclasses)))
 
+        running_winnings = 0
+
         for elem in outcome:
             for botclass in testclasses:
                 if isinstance(elem[0],botclass):
                     wincounts[botclass] += 1
                     winnings[botclass] += elem[1]
-                    winnings_array[botclass].append(elem[1])
+
+                    running_winnings += elem[1]
+                    winnings_array[botclass].append(running_winnings)
                 else:
-                    winnings_array[botclass].append(0)
+                    winnings_array[botclass].append(running_winnings)
 
         for testclass in testclasses:
             wincounts[testclass] /= len(outcome)
@@ -67,6 +71,21 @@ def evaluate(bot_under_test):
 
 def main():
     results = evaluate(AllIn)
+    import matplotlib.pyplot as plt
+
+    print(results[0] + "\n\n")
+    print(results[1])
+
+    for bot_count, bot_dict in results[2].iteritems():
+
+        for player, list in bot_dict.iteritems():
+            x_axis = range(len(list))
+            plt.plot(x_axis, list, label=str(player))
+        plt.xlabel('Radius/Side')
+        plt.ylabel('Area')
+        plt.title('Area of Shapes')
+        plt.legend()
+        plt.show()
 
 
 
