@@ -62,7 +62,7 @@ def evaluate(bot_under_test):
 
 
 
-    return win_percentages, total_winning
+    return win_percentages, total_winnings, winnings_over_time
 
 
 def main():
